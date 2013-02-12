@@ -5,37 +5,69 @@
 //   Dual licensed under the MIT and GPL licenses.                       //
 //                                                                       //
 /////////////////////////////////////////////////////////////////////////*/
-
+"use strict";
 var extension;
-//var ProfileManager;
-//var RuleManager;
-//var Settings;
-//var Logger;
-//var Utils;
-//var I18n;
 var anyValueModified = false;
 var ignoreFieldsChanges = false;
 var selectedRow;
 var selectedRuleRow;
 var switchRulesEnabled;
+var $s=function(expr){
+    var node=document.querySelector(expr);
+    return {
+        "bind":function(events,callback){
+            events.split(" ").map(function(event){
+                 node.addEventListener(event,callback);
+            });
+        },
+        "click":function(callback){
+            node.addEventListener("click",callback);
+        },
+        "change":function(callback){
+            node.addEventListener("change",callback);
+        },
+        "remove":function(){
+            if(node != null){
+                node.remove();
+            }
+        },
+        "clone":function(){
+            //return $(expr);
+            return this;
+        },
+        "removeClass":function(cls){
+            node.classList.remove(cls);
+            return this;
+        },
+        "addClass":function(cls){
+            node.classList.add(cls);
+            return this;
+        },
+        "append":function(child){
+            //node.appendChild(child);
+        }
+    };
+    //return document.querySelector(expr);
+}
 
 function init() {
-	extension = chrome.extension.getBackgroundPage();
-	ProfileManager = extension.ProfileManager;
-	RuleManager = extension.RuleManager;
-	Settings = extension.Settings;
-	Logger = extension.Logger;
-	Utils = extension.Utils;
-	I18n = extension.I18n;
-	
-	I18n.process(document);
-	document.body.style.visibility = "visible";
-	
-	initUI();
-	loadOptions();
-	checkPageParams();
-	
-	HelpToolTip.enableTooltips();
+	chrome.runtime.getBackgroundPage(function(extension){
+    	//ProfileManager = extension.ProfileManager;
+        //RuleManager = extension.RuleManager;
+        //Settings = extension.Settings;
+        //Logger = extension.Logger;
+        //Utils = extension.Utils;
+        //I18n = extension.I18n;
+        I18n.process(document);
+
+        document.body.style.visibility = "visible";
+        
+        initUI();
+        loadOptions();
+        checkPageParams();
+        
+        HelpToolTip.enableTooltips();
+    });
 }
 
 function initUI() {
@@ -584,13 +616,13 @@ function newRow(profile) {
 	row.removeClass("templateRow").addClass("tableRow");	
 	table.append(row);
 	
-	$("td:first", row).click(onSelectRow);
+	//$("td:first", row).click(onSelectRow);
 	
 	if (profile) {
 		profile = ProfileManager.normalizeProfile(profile);		
 		$("td:first", row).text(profile.name);
 		$("td:nth(1) div div", row).addClass(profile.color);
-//		$("td:nth(0)", row).addClass("c" + profile.color);
+		$("td:nth(0)", row).addClass("c" + profile.color);
 		row[0].profile = profile;
 		if (profile.unknown)
 			row.addClass("unknown");
@@ -970,7 +1002,7 @@ function getQueryParams() {
 	query = query.split("&");
 	
 	var params = [];
-	for (i in query) {
+	for (var i in query) {
 		var pair = query[i].split("=");
 		params[pair[0]] = pair[1];
 	}
@@ -1030,3 +1062,5 @@ function fixProxyString(proxy, defaultPort) {
 	defaultPort = defaultPort || "80";
 	return proxy + ":" + defaultPort;
 }
+
+document.addEventListener("DOMContentLoaded",init);

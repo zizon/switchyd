@@ -5,7 +5,7 @@
 //   Dual licensed under the MIT and GPL licenses.                       //
 //                                                                       //
 /////////////////////////////////////////////////////////////////////////*/
-
+"use strict";
 var I18n = {};
 
 I18n.messages = null;

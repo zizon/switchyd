@@ -5,6 +5,7 @@
 //   Dual licensed under the MIT and GPL licenses.                       //
 //                                                                       //
 /////////////////////////////////////////////////////////////////////////*/
+"use strict";
 
 var Settings = {};
 

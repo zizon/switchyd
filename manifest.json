@@ -1,29 +1,32 @@
 {
-"update_url":"http://clients2.google.com/service/update2/crx",
 	"name": "Proxy Switchy!",
-	"version": "1.6.3",
+	"version": "2.0.0",
+	"manifest_version": 2,
+	
 	"description": "Manage and switch between multiple proxies quickly and easily.",
 	"icons": { "128": "assets/images/icon-128.png" },
 	"default_locale": "en",
-	
-	"background_page": "main.html",
+
+	"browser_action": {
+		"default_icon": "assets/images/icon-blue.png",
+		"default_title": "Proxy Switchyd!",
+		"popup": "popup.html"
+	},
+    
+	"background":{
+        "persistent": false,
+        "scripts": ["assets/scripts/main.js"]
+    },
+    
+    "content_security_policy": "script-src 'self' 'unsafe-eval' ; object-src 'self'",
+
 	"options_page": "options.html",
 	
 	"permissions": [
+        "storage",
 		"tabs",
 		"bookmarks",
 		"http://*/",
 		"https://*/"
-	],
-	"browser_action": {
-		"default_icon": "assets/images/icon-blue.png",
-		"default_title": "Proxy Switchy!",
-		"popup": "popup.html"
-	},
-	"plugins": [
-		{ "path": "plugins/npSwitchy.dll" },
-		{ "path": "plugins/npSwitchy.so" },
-		{ "path": "plugins/npSwitchy64.so" },
-		{ "path": "plugins/iSwitchy.bundle" }
 	]
 }
