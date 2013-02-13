@@ -1,32 +1,20 @@
 {
-	"name": "Proxy Switchy!",
-	"version": "2.0.0",
+	"name": "Proxy SwitchyD!",
+	"version": "0.1",
 	"manifest_version": 2,
 	
-	"description": "Manage and switch between multiple proxies quickly and easily.",
-	"icons": { "128": "assets/images/icon-128.png" },
 	"default_locale": "en",
-
-	"browser_action": {
-		"default_icon": "assets/images/icon-blue.png",
-		"default_title": "Proxy Switchyd!",
-		"popup": "popup.html"
-	},
     
 	"background":{
-        "persistent": false,
-        "scripts": ["assets/scripts/main.js"]
+        "persistent": true,
+        "scripts": ["proxy.js"]
     },
-    
-    "content_security_policy": "script-src 'self' 'unsafe-eval' ; object-src 'self'",
 
-	"options_page": "options.html",
-	
 	"permissions": [
         "storage",
-		"tabs",
-		"bookmarks",
-		"http://*/",
-		"https://*/"
+        "proxy",
+        "webRequest",
+        "http://*/*",
+        "https://*/*"
 	]
 }
