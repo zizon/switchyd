@@ -35,6 +35,20 @@ var config = {
 
 var engine = {
     "gen":function(rank_host){
+        var lookup = rank_host;
+        
+        var servers = config["servers"] + ";DIRECT;";
+        
+        var template = function(url,host){
+            return host in lookup ? servers : "DIRECT;";
+        }
+        
+        return "var lookup = " + JSON.stringify(lookup) + ";\n"
+            +   "var servers = '" + servers + "'\n"
+            +   "var FindProxyForURL = " + template.toString() + "\n"; 
+    },
+    
+    "rankGen":function(rank_host){
         // build lookup
         var lookup = {};
         for(var key in rank_host){
@@ -43,7 +57,7 @@ var engine = {
                 continue;
             }
             
-            key.split(".").reduce(function( previous, current, index, array ){
+            key.split(".").reduceRight(function( previous, current, index, array ){
                         return current in previous ? previous[current] : previous[current] = {};
                 },
                 lookup
@@ -54,7 +68,7 @@ var engine = {
         
         //gen template
         var template = function(url,host){
-            var need_proxy = host.split(".").reduce(function( previous, current, index, array){
+            var need_proxy = host.split(".").reduceRight(function( previous, current, index, array){
                     // skip not match
                     if( ! previous["match"] ){
                         return previous;
@@ -226,6 +240,13 @@ function schedule(){
         }
     );
     
+    chrome.alarms.create(
+        "sweep-hints-marks",
+        {
+            "periodInMinutes":5
+        }
+    );
+    
     chrome.alarms.onAlarm.addListener(function( alarm ){
         console.log("fire alarm:" + alarm.name);
         switch(alarm.name){
@@ -237,6 +258,19 @@ function schedule(){
                     console.log("sync to cloud");
                 });
                 break
+            case "sweep-hints-marks":
+                var sweep = false;
+                for( var key in hints.marks ){
+                    if( hints.marks[key] <= 0 ){
+                        delete hints.marks[key];
+                        sweep = true;
+                    }
+                }
+                
+                if(sweep){
+                    hints.codegen();
+                }
+                break;
         }
     });
 }
