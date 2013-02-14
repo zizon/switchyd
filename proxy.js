@@ -35,20 +35,6 @@ var config = {
 
 var engine = {
     "gen":function(rank_host){
-        var lookup = rank_host;
-        
-        var servers = config["servers"] + ";DIRECT;";
-        
-        var template = function(url,host){
-            return host in lookup ? servers : "DIRECT;";
-        }
-        
-        return "var lookup = " + JSON.stringify(lookup) + ";\n"
-            +   "var servers = '" + servers + "'\n"
-            +   "var FindProxyForURL = " + template.toString() + "\n"; 
-    },
-    
-    "rankGen":function(rank_host){
         // build lookup
         var lookup = {};
         for(var key in rank_host){
@@ -68,14 +54,24 @@ var engine = {
         
         //gen template
         var template = function(url,host){
+            if( host in rank_host ){
+                return servers;
+            }
+            
             var need_proxy = host.split(".").reduceRight(function( previous, current, index, array){
+                    // fuzzy proxy,ignore remains
+                    if( previous["fuzzy"] ){
+                        return previous;
+                    }
+                    
                     // skip not match
                     if( ! previous["match"] ){
                         return previous;
                     }
                     
+                    // fall-back to exact host match
                     var context = previous["context"];
-                    
+  
                     // update context
                     if( current in context ){
                         previous["context"] = context[current];
@@ -87,14 +83,16 @@ var engine = {
                 },
                 {
                     "context":lookup,
-                    "match":true
+                    "match":true,
+                    "fuzzy":false
                 }
             );
             
-            return need_proxy["match"] ? servers : "DIRECT ;";
+            return need_proxy["fuzzy"] || need_proxy["match"] ? servers : "DIRECT ;";
         }
         
         return "var lookup = " + JSON.stringify(lookup) + ";\n"
+            +   "var rank_host = " + JSON.stringify(rank_host) + ";\n"
             +   "var servers = '" + servers + "'\n"
             +   "var FindProxyForURL = " + template.toString(); 
     }
@@ -102,6 +100,123 @@ var engine = {
 
 var hints ={
     "marks":{
+    },
+    
+    "compact":function(){
+        // easy job
+        if( "*" in this.marks ){
+            this.marks = {"*":2};
+            return;
+        }
+        
+        var lookup = {};
+        for( var key in this.marks ){
+            if( this.marks[key] <= 0 ){
+                delete this.marks[key];
+                continue;
+            }
+            
+            if("*.blogspot.com" == key){
+                console.log(key);
+            }
+            
+            // no fuzzy match,easy job
+            if( key.indexOf("*") == -1 ){
+                if( key.split(".").reduceRight(function( previous, current, index, array ){
+                                if( previous["ignore"] ){
+                                    return previous;
+                                }
+                                
+                                var context = previous["context"];
+                                if( "*" in context ){
+                                        previous["ignore"] = true;
+                                        return previous;
+                                }
+                                
+                                if( !(current in context) ){
+                                    context[current] = {}
+                                }
+                                
+                                previous["context"] = context[current];
+                                return previous;
+                        },
+                        {
+                            "context":lookup,
+                            "ignore":false
+                        }
+                    )["ignore"] 
+                ){
+                    // meet a fuzzy match,drop it
+                    delete this.marks[key];
+                }
+                
+                continue;
+            }
+            
+            // 1.filter fuzzy part
+            var context = key.split(".").reduceRight(function( previous, current, index, array ){
+                    if( previous["meet"] ){
+                        return previous;
+                    }else if( current == "*" ){
+                        previous["meet"] = true;
+                        return previous;
+                    }else{
+                        previous["stack"].push(current);
+                        
+                        var context = previous["current"];
+                        if( !(current in context) ){
+                            context[current] = {}
+                        }
+                        previous["current"] = context[current];
+                        return previous;
+                    }
+                },
+                {
+                    "meet":false,
+                    "stack":[],
+                    "current":lookup
+                }
+            );
+            
+            // 2.clean old if needed
+            var _this = this;
+            var eliminate = function( stack, current){
+                var empty = true;
+                for( var key in current ){
+                    empty = false;
+                    if( key == "*" ){
+                        continue;
+                    }
+                    
+                    stack.push(key);
+                    eliminate(stack,current[key]);
+                    stack.pop();
+                }
+                
+                // it is the leaf
+                if( empty ){
+                    delete _this.marks[stack.reverse().join(".")];
+                    stack.reverse();
+                }
+            }
+            
+            var stack = context["stack"];
+            var current = context["current"];
+            for( var key in current ){
+                if( key != "*" ){
+                    stack.push(key);
+                    eliminate(stack,current[key]);
+                    stack.pop();
+                }
+            }
+            
+            // 3. add fuzzy
+            stack.push("*")
+            this.marks[stack.reverse().join(".")] = 2;
+            
+            // 4. update lookup
+            current["*"] = {};
+        }
     },
     
     "markOK":function(host){
