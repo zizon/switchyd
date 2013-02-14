@@ -30,13 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 "use strict";
 
 var config = {
-    "isFromProxy":function(details){
-        if( details.ip == "127.0.0.1" ){
-            return true;
-        }else{
-            return false;
-        }
-    }
+    "servers":"SOCKS5 127.0.0.1:10086;",
 }
 
 var engine = {
@@ -55,6 +49,8 @@ var engine = {
                 lookup
             );
         }
+        
+        var servers = config["servers"] + ";DIRECT;";
         
         //gen template
         var template = function(url,host){
@@ -81,14 +77,11 @@ var engine = {
                 }
             );
             
-            alert(need_proxy);
-            
-            return need_proxy["match"] ? 
-                "SOCKS5 127.0.0.1:10086;DIRECT;" 
-                : "DIRECT ;";
+            return need_proxy["match"] ? servers : "DIRECT ;";
         }
         
         return "var lookup = " + JSON.stringify(lookup) + ";\n"
+            +   "var servers = '" + servers + "'\n"
             +   "var FindProxyForURL = " + template.toString(); 
     }
 }
@@ -97,19 +90,10 @@ var hints ={
     "marks":{
     },
     
-    "unmark":function(host){
+    "markOK":function(host){
         if( host in this.marks ){
-            switch(this.marks[host]){
-                case 5:
-                case 4:
-                case 3:
-                case 2:
-                    this.marks[host]--;
-                    break;
-                case 1:
-                    delete this.marks[host];
-                    this.codegen();
-                    break;
+            if( this.marks[host] < 5 ){
+                this.marks[host]++;
             }
         }
     },
@@ -137,20 +121,15 @@ var hints ={
         );
     },
     
-    "mark":function(host){
+    "markFail":function(host){
+            // if host not mark yet,mark it and gen proxy
+            // or that host already in proxy mode.
+            // decrease counter untile zero so it may recover from an
+            // init & clean state.(it may not require a proxy any more)
             if( host in this.marks ){
-                switch(this.marks[host]){
-                    case 1:
-                    case 2:
-                    case 3:
-                    case 4:
-                        this.marks[host]++;
-                    case 5:
-                        break;
-                    default:
-                        delete this.marks[host];
-                        this.codegen();
-                        break;
+                if( --this.marks[host] <= 0 ){
+                    delete this.marks[host];
+                    this.codegen();
                 }
             }else{
                 this.marks[host] = 2;
@@ -159,12 +138,39 @@ var hints ={
     }
 }
 
+function syncFromCloud(){
+    console.log("sync from cloud");
+    chrome.storage.sync.get(null,function(items){
+        console.log(items);
+        var marks = hints.marks;
+        for(var key in items){
+            marks[key] = items[key];
+        }
+    });
+}
+
+function resoreHints(){
+    console.log("restore hints");
+    var cache = localStorage.getItem("hints.marks");
+    if( cache == null ){
+        return;
+    }
+    
+    cache = JSON.parse(cache);
+    for( key in cache ){
+        hints.marks[key] = cache[key];
+    }
+    
+    hints.codegen();
+}
+
 function extractHost(url){
     var start = url.indexOf("://") + 3;
     return url.substr(start,url.indexOf("/",start) - start);
 }
 
 function handInRequest(){
+    console.log("handin request");
     chrome.webRequest.onErrorOccurred.addListener(
         function(details){
             console.error(details);
@@ -179,7 +185,7 @@ function handInRequest(){
             }
             
             // mark it to direct proxy code gen
-            hints.mark(extractHost(details.url));
+            hints.markFail(extractHost(details.url));
         },
         {
             "urls":["<all_urls>"]
@@ -193,12 +199,8 @@ function handInRequest(){
                 return;
             }
             
-            // if not from proxy,unmark it as need,
-            // so it could have a chance to eliminate from
-            // proxy code gen which is false positive.
-            if( !config.isFromProxy(details) ){
-                hints.unmark(extractHost(details.url));
-            }
+            // mark host ok
+            hints.markOK(extractHost(details.url));
         },
         {
             "urls":["<all_urls>"]
@@ -207,8 +209,42 @@ function handInRequest(){
     );
 }
 
+function schedule(){
+    console.log("schedule");
+    chrome.alarms.create(
+        "sync-local-cache",
+        {
+            "periodInMinutes":10
+        }
+    );
+    
+    chrome.alarms.create(
+        "sync-to-cloud",
+        {
+            "periodInMinutes":30
+        }
+    );
+    
+    chrome.alarms.onAlarm.addListener(function( alarm ){
+        console.log("fire alarm:" + alarm.name);
+        switch(alarm.name){
+            case "sync-local-cache":
+                localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
+                break;
+            case "sync-to-cloud":
+                chrome.storage.sync.set(hints["marks"],function(){
+                    console.log("sync to cloud");
+                });
+                break
+        }
+    });
+}
+
 function handIn(){
+    syncFromCloud();
+    resoreHints();
     handInRequest();
+    schedule();
 }
 
 chrome.runtime.onInstalled.addListener(function(details){
@@ -218,6 +254,7 @@ chrome.runtime.onInstalled.addListener(function(details){
         case "update":
         case "chrome_update":
             console.log(details.reason);
+            break;
     }
     
    handIn();

@@ -9,6 +9,7 @@
     },
 
 	"permissions": [
+        "alarms",
         "storage",
         "proxy",
         "webRequest",
