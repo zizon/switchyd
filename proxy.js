@@ -29,81 +29,186 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 "use strict";
 
-function handInProxy(){
-    // reset 
-    //chrome.proxy.settings.clear({});
-/*
-    chrome.proxy.onProxyError.addListener(function(details){
-        console.error("proxy error:" + details);
-    });
-
-    chrome.proxy.settings.set(
-        {
-            "value":{
-                "mode":"pac_script",
-                "pacScript":{
-                    "mandatory":true,
-                    "url":"proxy.pac"
-                }
-            }
-        },
-        function(){
-            console.log("setting apply");
+var config = {
+    "isFromProxy":function(details){
+        if( details.ip == "127.0.0.1" ){
+            return true;
+        }else{
+            return false;
         }
-    );*/
+    }
+}
+
+var engine = {
+    "gen":function(rank_host){
+        // build lookup
+        var lookup = {};
+        for(var key in rank_host){
+            if( rank_host[key] <= 0 ){
+                delete rank_host[key];
+                continue;
+            }
+            
+            key.split(".").reduce(function( previous, current, index, array ){
+                        return current in previous ? previous[current] : previous[current] = {};
+                },
+                lookup
+            );
+        }
+        
+        //gen template
+        var template = function(url,host){
+            var need_proxy = host.split(".").reduce(function( previous, current, index, array){
+                    // skip not match
+                    if( ! previous["match"] ){
+                        return previous;
+                    }
+                    
+                    var context = previous["context"];
+                    
+                    // update context
+                    if( current in context ){
+                        previous["context"] = context[current];
+                    }else{
+                        previous["match"] = false;
+                    }
+                    
+                    return previous;
+                },
+                {
+                    "context":lookup,
+                    "match":true
+                }
+            );
+            
+            alert(need_proxy);
+            
+            return need_proxy["match"] ? 
+                "SOCKS5 127.0.0.1:10086;DIRECT;" 
+                : "DIRECT ;";
+        }
+        
+        return "var lookup = " + JSON.stringify(lookup) + ";\n"
+            +   "var FindProxyForURL = " + template.toString(); 
+    }
+}
+
+var hints ={
+    "marks":{
+    },
+    
+    "unmark":function(host){
+        if( host in this.marks ){
+            switch(this.marks[host]){
+                case 5:
+                case 4:
+                case 3:
+                case 2:
+                    this.marks[host]--;
+                    break;
+                case 1:
+                    delete this.marks[host];
+                    this.codegen();
+                    break;
+            }
+        }
+    },
+    
+    "codegen":function(){
+        chrome.proxy.settings.clear({});
+
+        chrome.proxy.onProxyError.addListener(function(details){
+            console.error("proxy error:" + details);
+        });
+
+        chrome.proxy.settings.set(
+            {
+                "value":{
+                    "mode":"pac_script",
+                    "pacScript":{
+                        "mandatory":true,
+                        "data":engine.gen(this.marks)
+                    }
+                }
+            },
+            function(){
+                console.log("setting apply");
+            }
+        );
+    },
+    
+    "mark":function(host){
+            if( host in this.marks ){
+                switch(this.marks[host]){
+                    case 1:
+                    case 2:
+                    case 3:
+                    case 4:
+                        this.marks[host]++;
+                    case 5:
+                        break;
+                    default:
+                        delete this.marks[host];
+                        this.codegen();
+                        break;
+                }
+            }else{
+                this.marks[host] = 2;
+                this.codegen();
+            }
+    }
+}
+
+function extractHost(url){
+    var start = url.indexOf("://") + 3;
+    return url.substr(start,url.indexOf("/",start) - start);
 }
 
 function handInRequest(){
     chrome.webRequest.onErrorOccurred.addListener(
         function(details){
             console.error(details);
-            var url = details.url;
             
-            if( url.length < 3 ){
-                return;
-            }
-            
-            var i=3;
-            for( ;i<url.length; ){
-                switch( url[i] ){
-                    default:
-                        i+=3;
-                        continue;
-                    case ':':
-                        i+=2;
-                        continue;
-                    case '/':
-                        if( url[i-1] == '/' && url[i-2] == ':'  ){
-                            i++;
-                            break;
-                        }
-                        i++;
-                        continue;
-                }
-                break;
-            }
-            
-            var start = i;
-            var host = "";
-            while(i<url.length){
-                if( url[i++] == "/" ){
-                    host = url.substr(start,i-start-1);
+            // inspect potential reset request
+            switch(details.error){
+                default:
+                    return;
+                case "net::ERR_CONNECTION_RESET":
+                case "net::ERR_CONNECTION_ABORTED":
                     break;
-                }
             }
             
-            console.log(details.url + "---" +host);
+            // mark it to direct proxy code gen
+            hints.mark(extractHost(details.url));
         },
         {
             "urls":["<all_urls>"]
         }
     );
+    
+    chrome.webRequest.onCompleted.addListener(
+        function(details){
+            // ignore cache
+            if(details.fromCache){
+                return;
+            }
+            
+            // if not from proxy,unmark it as need,
+            // so it could have a chance to eliminate from
+            // proxy code gen which is false positive.
+            if( !config.isFromProxy(details) ){
+                hints.unmark(extractHost(details.url));
+            }
+        },
+        {
+            "urls":["<all_urls>"]
+        },
+        []
+    );
 }
 
 function handIn(){
-    //handInStorage();
     handInRequest();
-    //handInProxy();
 }
 
 chrome.runtime.onInstalled.addListener(function(details){
@@ -119,6 +224,7 @@ chrome.runtime.onInstalled.addListener(function(details){
 });
 
 chrome.runtime.onStartup.addListener(function(){
+    console.log("starup");
     handIn();
 });
 
