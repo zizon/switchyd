@@ -30,7 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 "use strict";
 
 var config = {
-    "servers":"SOCKS5 127.0.0.1:10086;",
+    "servers":"SOCKS5 127.0.0.1:10086;"
 }
 
 var engine = {
@@ -92,7 +92,7 @@ var hints ={
     
     "markOK":function(host){
         if( host in this.marks ){
-            if( this.marks[host] < 5 ){
+            if( this.marks[host] < Number.MAX_VALUE ){
                 this.marks[host]++;
             }
         }
@@ -181,6 +181,7 @@ function handInRequest(){
                     return;
                 case "net::ERR_CONNECTION_RESET":
                 case "net::ERR_CONNECTION_ABORTED":
+                case "net::ERR_CONNECTION_TIMED_OUT":
                     break;
             }
             
@@ -264,8 +265,3 @@ chrome.runtime.onStartup.addListener(function(){
     console.log("starup");
     handIn();
 });
-
-
-
-
- 
