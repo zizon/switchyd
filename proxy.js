@@ -309,6 +309,7 @@ function resoreHints(){
         hints.marks[key] = cache[key];
     }
     
+	hints.compact();
     hints.codegen();
 }
 
@@ -385,6 +386,7 @@ function schedule(){
         console.log("fire alarm:" + alarm.name);
         switch(alarm.name){
             case "sync-local-cache":
+				hints.compact();
                 localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
                 break;
             case "sync-to-cloud":
