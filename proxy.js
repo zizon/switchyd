@@ -384,14 +384,14 @@ function schedule(){
     chrome.alarms.create(
         "sync-to-cloud",
         {
-            "periodInMinutes":5
+            "periodInMinutes":30
         }
     );
     
     chrome.alarms.create(
         "sweep-hints-marks",
         {
-            "periodInMinutes":1
+            "periodInMinutes":5
         }
     );
     
