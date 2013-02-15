@@ -420,7 +420,7 @@ function schedule(){
 								// update marks
 								context.push("*");
 								
-								var new_key = context.revserse().join(".");
+								var new_key = context.reverse().join(".");
 								// already in marks,update it
 								if( new_key in hints.marks ){
 									hints.marks[new_key] += hints.complete[key];
