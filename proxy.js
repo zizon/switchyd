@@ -281,16 +281,16 @@ var hints ={
     },
     
     "markFail":function(host){
-            // if host not mark yet,mark it and gen proxy
-            // or that host already in proxy mode.
-            // decrease counter untile zero so it may recover from an
-            // init & clean state.(it may not require a proxy any more)
+            // if host is in proxy.
+			// update marks
             if( host in this.marks ){
                 if( --this.marks[host] <= 0 ){
+					// proxy fail much,remove from proxy
                     delete this.marks[host];
                     this.codegen();
                 }
             }else{
+				// not in proxy yet,add it
                 this.marks[host] = 2;
                 this.codegen();
             }
@@ -300,7 +300,6 @@ var hints ={
 function syncFromCloud(){
     console.log("sync from cloud");
     chrome.storage.sync.get(null,function(items){
-        console.log(items);
         var marks = hints.marks;
         for(var key in items){
             marks[key] = items[key];
@@ -375,21 +374,21 @@ function schedule(){
     chrome.alarms.create(
         "sync-local-cache",
         {
-            "periodInMinutes":10
+            "periodInMinutes":5
         }
     );
     
     chrome.alarms.create(
         "sync-to-cloud",
         {
-            "periodInMinutes":30
+            "periodInMinutes":5
         }
     );
     
     chrome.alarms.create(
         "sweep-hints-marks",
         {
-            "periodInMinutes":5
+            "periodInMinutes":1
         }
     );
     
@@ -405,7 +404,11 @@ function schedule(){
                 });
                 break
             case "sweep-hints-marks":
+				// compact first,make it shorter
 				hints.compact();
+				
+				// loop hints.complete list,
+				// update counter in marks.
 				var lookup = hints.genLookup();
 				for( var key in hints.complete ){
 					key.split(".").reduceRight(function( previous, current, index, array ){
@@ -419,19 +422,14 @@ function schedule(){
 								// meet a fuzzy,
 								// update marks
 								context.push("*");
-								
 								var new_key = context.reverse().join(".");
+								
 								// already in marks,update it
-								if( new_key in hints.marks ){
-									hints.marks[new_key] += hints.complete[key];
-								}
+								hints.marks[new_key] += hints.complete[key];
 								
 								// reset context
 								context.reverse();
 								context.pop();
-								
-								// delete key
-								delete hints.complete[key];
 								
 								previous["done"] = true;
 							}
@@ -443,7 +441,6 @@ function schedule(){
 							}else{
 								// no record in marks
 								previous["done"] = true;
-								delete hints.complete[key];
 							}
 							
 							return previous;
@@ -455,6 +452,9 @@ function schedule(){
 						}
 					);
 				}
+				
+				// clear
+				hints.complete = {};
         }
     });
 }
