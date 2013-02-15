@@ -240,8 +240,11 @@ var hints ={
             
             // 3. add fuzzy back
             stack.push("*")
-            this.marks[stack.reverse().join(".")] = 2;
-            
+			var new_key = stack.reverse().join(".");
+			if( ! (new_key in this.marks) ){
+				this.marks[new_key] = 2;
+			}
+ 
             // 4. update lookup
             current["*"] = {};
         }
