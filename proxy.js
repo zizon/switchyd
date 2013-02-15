@@ -413,8 +413,9 @@ function schedule(){
 								return previous;
 							}
 							
+							var lookup = previous["lookup"];
 							var context = previous["context"];
-							if( "*" in previous ){
+							if( "*" in lookup ){
 								// meet a fuzzy,
 								// update marks
 								context.push("*");
@@ -436,13 +437,13 @@ function schedule(){
 							}
 							
 							// normal case,deep down if needed
-							var lookup = previous["lookup"];
 							if( current in lookup ){
 								context.push(current);
 								previous["lookup"] = lookup[current];
 							}else{
 								// no record in marks
 								previous["done"] = true;
+								delete hints.complete[key];
 							}
 							
 							return previous;
