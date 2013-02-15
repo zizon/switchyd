@@ -34,12 +34,12 @@ var config = {
 }
 
 var engine = {
-    "gen":function(rank_host){
+    "gen":function(marks){
         // build lookup
         var lookup = {};
-        for(var key in rank_host){
-            if( rank_host[key] <= 0 ){
-                delete rank_host[key];
+        for(var key in marks){
+            if( marks[key] <= 0 ){
+                delete marks[key];
                 continue;
             }
             
@@ -54,45 +54,49 @@ var engine = {
         
         //gen template
         var template = function(url,host){
-            if( host in rank_host ){
+            if( host in marks ){
                 return servers;
             }
             
             var need_proxy = host.split(".").reduceRight(function( previous, current, index, array){
-                    // fuzzy proxy,ignore remains
-                    if( previous["fuzzy"] ){
-                        return previous;
-                    }
-                    
-                    // skip not match
-                    if( ! previous["match"] ){
-                        return previous;
-                    }
-                    
-                    // fall-back to exact host match
-                    var context = previous["context"];
-  
-                    // update context
-                    if( current in context ){
-                        previous["context"] = context[current];
-                    }else{
-                        previous["match"] = false;
-                    }
-                    
-                    return previous;
+					// if already meet a fuzzy,ignore
+					if( previous["fuzzy"] || previous["giveup"] ){
+						return previous;
+					}
+					
+					var context = previous["lookup"];
+					
+					// see if current context has fuzzy
+					if( "*" in context ){
+						// mark it
+						previous["fuzzy"] = true;
+						return previous;
+					}
+					
+					if( current in context ){
+						// match , deep down
+						previous["lookup"] = context[current];
+						return previous;
+					}else{
+						// no match,indicates:
+						// 1. not in host list
+						// 2. not necessary in lookup table
+						previous["giveup"] = true;
+						return previous;
+					}
                 },
                 {
-                    "context":lookup,
-                    "match":true,
-                    "fuzzy":false
+                    "lookup":lookup,
+                    "fuzzy":false,
+					"giveup":false
                 }
             );
             
-            return need_proxy["fuzzy"] || need_proxy["match"] ? servers : "DIRECT ;";
+            return need_proxy["fuzzy"] ? servers : "DIRECT;";
         }
         
         return "var lookup = " + JSON.stringify(lookup) + ";\n"
-            +   "var rank_host = " + JSON.stringify(rank_host) + ";\n"
+            +   "var marks = " + JSON.stringify(marks) + ";\n"
             +   "var servers = '" + servers + "'\n"
             +   "var FindProxyForURL = " + template.toString(); 
     }
@@ -101,7 +105,7 @@ var engine = {
 var hints ={
     "marks":{
     },
-    
+	
     "compact":function(){
         // easy job
         if( "*" in this.marks ){
@@ -109,100 +113,115 @@ var hints ={
             return;
         }
         
+		// lookup table
         var lookup = {};
+
+		// eliminate
+		var this_hints = this;
+		var eliminate = function( context, current_lookup ){
+			for( var key in current_lookup ){
+				// ignore fuzzy itself
+				if( key == "*" ){
+					continue;
+				}
+				
+				// sweep children
+				context.push(key);
+				eliminate(context,current_lookup[key]);
+				delete this_hints.marks[context.reverse().join(".")];
+				context.reverse();
+				context.pop();
+			}
+		}
+		
         for( var key in this.marks ){
             if( this.marks[key] <= 0 ){
                 delete this.marks[key];
                 continue;
             }
             
-            if("*.blogspot.com" == key){
-                console.log(key);
-            }
-            
             // no fuzzy match,easy job
             if( key.indexOf("*") == -1 ){
                 if( key.split(".").reduceRight(function( previous, current, index, array ){
-                                if( previous["ignore"] ){
+								// give up
+                                if( previous["giveup"] ){
                                     return previous;
                                 }
                                 
-                                var context = previous["context"];
-                                if( "*" in context ){
-                                        previous["ignore"] = true;
+								// if fuzzy,give up
+                                var lookup = previous["lookup"];
+                                if( "*" in lookup ){
+                                        previous["giveup"] = true;
                                         return previous;
                                 }
                                 
-                                if( !(current in context) ){
-                                    context[current] = {}
+								// not in lookup,create one
+                                if( !(current in lookup) ){
+                                    lookup[current] = {}
                                 }
                                 
-                                previous["context"] = context[current];
+								// update lookup
+                                previous["lookup"] = lookup[current];
                                 return previous;
                         },
                         {
-                            "context":lookup,
-                            "ignore":false
+                            "lookup":lookup,
+                            "giveup":false
                         }
-                    )["ignore"] 
+                    )["giveup"] 
                 ){
-                    // meet a fuzzy match,drop it
+                    // give up means there already be a fuzzy match,
+					// so ,this ruled.
                     delete this.marks[key];
                 }
                 
+				// done lookup build for this key in situation:
+				// 1. either bulid into lookup without bother of fuzzy match.
+				// 2. or ignore by an existing fuzzy match.
                 continue;
             }
             
-            // 1.filter fuzzy part
+            // 1.find the right most fuzzy.
+			// and keep context
             var context = key.split(".").reduceRight(function( previous, current, index, array ){
-                    if( previous["meet"] ){
+                    if( previous["fuzzy"] ){
+						// already meet fuzzy.
+						// do nothing,and continue next
                         return previous;
                     }else if( current == "*" ){
-                        previous["meet"] = true;
+						// meet a fuzzy
+						// update flag
+                        previous["fuzzy"] = true;
                         return previous;
                     }else{
-                        previous["stack"].push(current);
+						// normal case,build context
+                        previous["context"].push(current);
                         
-                        var context = previous["current"];
-                        if( !(current in context) ){
-                            context[current] = {}
+						// update lookup
+                        var lookup = previous["lookup"];
+						
+						// not in lookup yet,make one
+                        if( !(current in lookup) ){
+                            lookup[current] = {}
                         }
-                        previous["current"] = context[current];
+						
+						// update
+                        previous["lookup"] = lookup[current];
                         return previous;
                     }
                 },
                 {
-                    "meet":false,
-                    "stack":[],
-                    "current":lookup
+                    "fuzzy":false,
+                    "context":[],
+                    "lookup":lookup
                 }
             );
             
             // 2.clean old if needed
-            var _this = this;
-            var eliminate = function( stack, current){
-                var empty = true;
-                for( var key in current ){
-                    empty = false;
-                    if( key == "*" ){
-                        continue;
-                    }
-                    
-                    stack.push(key);
-                    eliminate(stack,current[key]);
-                    stack.pop();
-                }
-                
-                // it is the leaf
-                if( empty ){
-                    delete _this.marks[stack.reverse().join(".")];
-                    stack.reverse();
-                }
-            }
-            
-            var stack = context["stack"];
-            var current = context["current"];
+			var stack = context["context"];
+			var current = context["lookup"];
             for( var key in current ){
+				// optimize case,ignore fuzzy
                 if( key != "*" ){
                     stack.push(key);
                     eliminate(stack,current[key]);
@@ -210,7 +229,7 @@ var hints ={
                 }
             }
             
-            // 3. add fuzzy
+            // 3. add fuzzy back
             stack.push("*")
             this.marks[stack.reverse().join(".")] = 2;
             
