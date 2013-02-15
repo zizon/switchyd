@@ -413,10 +413,10 @@ function schedule(){
 								return previous;
 							}
 							
+							var context = previous["context"];
 							if( "*" in previous ){
 								// meet a fuzzy,
 								// update marks
-								var context = previous["context"];
 								context.push("*");
 								
 								var new_key = context.revserse().join(".");
