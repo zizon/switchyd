@@ -34,21 +34,10 @@ var config = {
 }
 
 var engine = {
-    "gen":function(marks){
+    "gen":function(hints){
         // build lookup
-        var lookup = {};
-        for(var key in marks){
-            if( marks[key] <= 0 ){
-                delete marks[key];
-                continue;
-            }
-            
-            key.split(".").reduceRight(function( previous, current, index, array ){
-                        return current in previous ? previous[current] : previous[current] = {};
-                },
-                lookup
-            );
-        }
+        var lookup = hints.genLookup();
+		var marks = hints.marks;
         
         var servers = config["servers"] + ";DIRECT;";
         
@@ -103,8 +92,28 @@ var engine = {
 }
 
 var hints ={
-    "marks":{
-    },
+    "marks":{},
+	
+	"complete":{},
+	
+	"genLookup":function(){
+		var lookup = {};
+		var marks = this.marks;
+        for(var key in marks){
+            if( marks[key] <= 0 ){
+                delete marks[key];
+                continue;
+            }
+            
+            key.split(".").reduceRight(function( previous, current, index, array ){
+                        return current in previous ? previous[current] : previous[current] = {};
+                },
+                lookup
+            );
+        }
+		
+		return lookup;
+	},
 	
     "compact":function(){
         // easy job
@@ -239,11 +248,13 @@ var hints ={
     },
     
     "markOK":function(host){
-        if( host in this.marks ){
-            if( this.marks[host] < Number.MAX_VALUE ){
-                this.marks[host]++;
+        if( host in this.complete ){
+            if( this.complete[host] < Number.MAX_VALUE ){
+                this.complete[host]++;
             }
-        }
+        }else{
+			this.complete[host] = 1;
+		}
     },
     
     "codegen":function(){
@@ -259,7 +270,7 @@ var hints ={
                     "mode":"pac_script",
                     "pacScript":{
                         "mandatory":true,
-                        "data":engine.gen(this.marks)
+                        "data":engine.gen(this)
                     }
                 }
             },
@@ -386,7 +397,6 @@ function schedule(){
         console.log("fire alarm:" + alarm.name);
         switch(alarm.name){
             case "sync-local-cache":
-				hints.compact();
                 localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
                 break;
             case "sync-to-cloud":
@@ -395,18 +405,55 @@ function schedule(){
                 });
                 break
             case "sweep-hints-marks":
-                var sweep = false;
-                for( var key in hints.marks ){
-                    if( hints.marks[key] <= 0 ){
-                        delete hints.marks[key];
-                        sweep = true;
-                    }
-                }
-                
-                if(sweep){
-                    hints.codegen();
-                }
-                break;
+				hints.compact();
+				var lookup = hints.genLookup();
+				for( var key in hints.complete ){
+					key.split(".").reduceRight(function( previous, current, index, array ){
+							if( previous["done"] ){
+								return previous;
+							}
+							
+							if( "*" in previous ){
+								// meet a fuzzy,
+								// update marks
+								var context = previous["context"];
+								context.push("*");
+								
+								var new_key = context.revserse().join(".");
+								// already in marks,update it
+								if( new_key in hints.marks ){
+									hints.marks[new_key] += hints.complete[key];
+								}
+								
+								// reset context
+								context.reverse();
+								context.pop();
+								
+								// delete key
+								delete hints.complete[key];
+								
+								previous["done"] = true;
+							}
+							
+							// normal case,deep down if needed
+							var lookup = previous["lookup"];
+							if( current in lookup ){
+								context.push(current);
+								previous["lookup"] = lookup[current];
+							}else{
+								// no record in marks
+								previous["done"] = true;
+							}
+							
+							return previous;
+						},
+						{
+							"lookup":lookup,
+							"context":[],
+							"done":false
+						}
+					);
+				}
         }
     });
 }
