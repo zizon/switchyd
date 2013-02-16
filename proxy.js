@@ -41,52 +41,22 @@ var engine = {
         
         var servers = config["servers"] + ";DIRECT;";
         
+		var matchFuzzy = hints.match;
+		
         //gen template
         var template = function(url,host){
             if( host in marks ){
                 return servers;
             }
-            
-            var need_proxy = host.split(".").reduceRight(function( previous, current, index, array){
-					// if already meet a fuzzy,ignore
-					if( previous["fuzzy"] || previous["giveup"] ){
-						return previous;
-					}
-					
-					var context = previous["lookup"];
-					
-					// see if current context has fuzzy
-					if( "*" in context ){
-						// mark it
-						previous["fuzzy"] = true;
-						return previous;
-					}
-					
-					if( current in context ){
-						// match , deep down
-						previous["lookup"] = context[current];
-						return previous;
-					}else{
-						// no match,indicates:
-						// 1. not in host list
-						// 2. not necessary in lookup table
-						previous["giveup"] = true;
-						return previous;
-					}
-                },
-                {
-                    "lookup":lookup,
-                    "fuzzy":false,
-					"giveup":false
-                }
-            );
-            
-            return need_proxy["fuzzy"] ? servers : "DIRECT;";
+			
+			var match = matchFuzzy(host,lookup,false);
+			return match["fuzzy"] || match["giveup"] ? servers : "DIRECT;";
         }
         
         return "var lookup = " + JSON.stringify(lookup) + ";\n"
             +   "var marks = " + JSON.stringify(marks) + ";\n"
             +   "var servers = '" + servers + "'\n"
+			+	"var matchFuzzy = " + matchFuzzy.toString() + "\n"
             +   "var FindProxyForURL = " + template.toString(); 
     }
 }
@@ -377,46 +347,10 @@ function schedule(){
 				// update counter in marks.
 				var lookup = hints.genLookup();
 				for( var key in hints.complete ){
-					key.split(".").reduceRight(function( previous, current, index, array ){
-							if( previous["done"] ){
-								return previous;
-							}
-							
-							var lookup = previous["lookup"];
-							var context = previous["context"];
-							if( "*" in lookup ){
-								// meet a fuzzy,
-								// update marks
-								context.push("*");
-								var new_key = context.reverse().join(".");
-								
-								// already in marks,update it
-								hints.marks[new_key] += hints.complete[key];
-								
-								// reset context
-								context.reverse();
-								context.pop();
-								
-								previous["done"] = true;
-							}
-							
-							// normal case,deep down if needed
-							if( current in lookup ){
-								context.push(current);
-								previous["lookup"] = lookup[current];
-							}else{
-								// no record in marks
-								previous["done"] = true;
-							}
-							
-							return previous;
-						},
-						{
-							"lookup":lookup,
-							"context":[],
-							"done":false
-						}
-					);
+					var match = hints.match(key,lookup,true);
+					if( match["fuzzy"] ){
+						hints.marks[match["context"].revsrse().join(".")] += hints.complete[key];
+					}
 				}
 				
 				// clear
