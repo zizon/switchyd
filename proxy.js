@@ -115,6 +115,51 @@ var hints ={
 		return lookup;
 	},
 	
+	"match":function(host,lookup,create_when_miss){
+		return host.split(".").reduceRight(function( previous, current, index, array ){
+				// if already meet a fuzzy,ignore
+				if( previous["fuzzy"] || previous["giveup"] ){
+					return previous;
+				}
+					
+				var lookup = previous["lookup"];
+					
+				// see if current context has fuzzy
+				if( "*" in lookup ){
+					// mark it
+					previous["fuzzy"] = true;
+					
+					// save match context
+					previous["context"].push("*");
+					return previous;
+				}
+					
+				if( current in lookup ){
+					// match , deep down
+					previous["lookup"] = lookup[current];
+					previous["context"].push(current);
+					return previous;
+				}
+				
+				// not match,
+				if( create_when_miss ){
+					previous["lookup"] = lookup[current] = {};
+					previous["context"].push(current);
+					return previous;
+				}else{
+					previous["giveup"] = true;
+					return previous;
+				}
+			},
+			{
+				"lookup":lookup,
+				"fuzzy":false,
+				"giveup":false,
+				"context":[]
+			}
+		);
+	},
+	
     "compact":function(){
         // easy job
         if( "*" in this.marks ){
@@ -148,105 +193,33 @@ var hints ={
                 delete this.marks[key];
                 continue;
             }
-            
-            // no fuzzy match,easy job
-            if( key.indexOf("*") == -1 ){
-                if( key.split(".").reduceRight(function( previous, current, index, array ){
-								// give up
-                                if( previous["giveup"] ){
-                                    return previous;
-                                }
-                                
-								// if fuzzy,give up
-                                var lookup = previous["lookup"];
-                                if( "*" in lookup ){
-                                        previous["giveup"] = true;
-                                        return previous;
-                                }
-                                
-								// not in lookup,create one
-                                if( !(current in lookup) ){
-                                    lookup[current] = {}
-                                }
-                                
-								// update lookup
-                                previous["lookup"] = lookup[current];
-                                return previous;
-                        },
-                        {
-                            "lookup":lookup,
-                            "giveup":false
-                        }
-                    )["giveup"] 
-                ){
-                    // give up means there already be a fuzzy match,
-					// so ,this ruled.
-                    delete this.marks[key];
-                }
-                
-				// done lookup build for this key in situation:
-				// 1. either bulid into lookup without bother of fuzzy match.
-				// 2. or ignore by an existing fuzzy match.
-                continue;
-            }
-            
-            // 1.find the right most fuzzy.
-			// and keep context
-            var context = key.split(".").reduceRight(function( previous, current, index, array ){
-                    if( previous["fuzzy"] ){
-						// already meet fuzzy.
-						// do nothing,and continue next
-                        return previous;
-                    }else if( current == "*" ){
-						// meet a fuzzy
-						// update flag
-                        previous["fuzzy"] = true;
-                        return previous;
-                    }else{
-						// normal case,build context
-                        previous["context"].push(current);
-                        
-						// update lookup
-                        var lookup = previous["lookup"];
-						
-						// not in lookup yet,make one
-                        if( !(current in lookup) ){
-                            lookup[current] = {}
-                        }
-						
-						// update
-                        previous["lookup"] = lookup[current];
-                        return previous;
-                    }
-                },
-                {
-                    "fuzzy":false,
-                    "context":[],
-                    "lookup":lookup
-                }
-            );
-            
-            // 2.clean old if needed
-			var stack = context["context"];
-			var current = context["lookup"];
-            for( var key in current ){
-				// optimize case,ignore fuzzy
-                if( key != "*" ){
-                    stack.push(key);
-                    eliminate(stack,current[key]);
-                    stack.pop();
-                }
-            }
-            
-            // 3. add fuzzy back
-            stack.push("*")
-			var new_key = stack.reverse().join(".");
-			if( ! (new_key in this.marks) ){
-				this.marks[new_key] = 2;
+			
+			var match = this.match(key,lookup,true);
+			
+			// match fuzzy
+			if( match["fuzzy"] ){
+				// it is not fuzzy,delete it
+				if( key.indexOf("*") == -1 ){
+					delete this.marks[key];
+					continue;
+				}
+				
+				// or eliminate not fuzzy
+				
+				var stack = match["context"];
+				var current = match["lookup"];
+		
+				// loop each child and deep down.
+				// delete all of it.
+				for( var key in current ){
+					// optimize case,ignore fuzzy
+					if( key != "*" ){
+						stack.push(key);
+						eliminate(stack,current[key]);
+						stack.pop();
+					}
+				}
 			}
- 
-            // 4. update lookup
-            current["*"] = {};
         }
     },
     
