@@ -375,13 +375,6 @@ function handInRequest(){
 function schedule(){
     console.log("schedule");
     chrome.alarms.create(
-        "sync-local-cache",
-        {
-            "periodInMinutes":5
-        }
-    );
-    
-    chrome.alarms.create(
         "sync-to-cloud",
         {
             "periodInMinutes":30
@@ -398,9 +391,6 @@ function schedule(){
     chrome.alarms.onAlarm.addListener(function( alarm ){
         console.log("fire alarm:" + alarm.name);
         switch(alarm.name){
-            case "sync-local-cache":
-                localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
-                break;
             case "sync-to-cloud":
                 chrome.storage.sync.set(hints["marks"],function(){
                     console.log("sync to cloud");
@@ -458,6 +448,9 @@ function schedule(){
 				
 				// clear
 				hints.complete = {};
+				
+				console.log("sync-local-cache");
+				localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
         }
     });
 }
