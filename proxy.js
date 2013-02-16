@@ -251,6 +251,13 @@ function syncFromCloud(){
             marks[key] = items[key];
         }
     });
+	
+	chrome.storage.local.get(null,function(items){
+        var marks = hints.marks;
+        for(var key in items){
+            marks[key] = items[key];
+        }
+    });
 }
 
 function resoreHints(){
@@ -287,11 +294,9 @@ function handInRequest(){
                 case "net::ERR_CONNECTION_RESET":
                 case "net::ERR_CONNECTION_ABORTED":
                 case "net::ERR_CONNECTION_TIMED_OUT":
+					hints.markFail(extractHost(details.url));
                     break;
             }
-            
-            // mark it to direct proxy code gen
-            hints.markFail(extractHost(details.url));
         },
         {
             "urls":["<all_urls>"]
@@ -338,6 +343,9 @@ function schedule(){
                 chrome.storage.sync.set(hints["marks"],function(){
                     console.log("sync to cloud");
                 });
+				chrome.storage.local.set(hints["marks"],function(){
+                    console.log("sync to cload(local)");
+                })
                 break
             case "sweep-hints-marks":
 				// compact first,make it shorter
