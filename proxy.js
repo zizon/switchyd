@@ -50,7 +50,7 @@ var engine = {
             }
 			
 			var match = matchFuzzy(host,lookup,false);
-			return match["fuzzy"] || match["giveup"] ? servers : "DIRECT;";
+			return match["fuzzy"] || ! match["giveup"] ? servers : "DIRECT;";
         }
         
         return "var lookup = " + JSON.stringify(lookup) + ";\n"
