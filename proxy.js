@@ -357,7 +357,7 @@ function schedule(){
 				for( var key in hints.complete ){
 					var match = hints.match(key,lookup,true);
 					if( match["fuzzy"] ){
-						hints.marks[match["context"].revsrse().join(".")] += hints.complete[key];
+						hints.marks[match["context"].reverse().join(".")] += hints.complete[key];
 					}
 				}
 				
