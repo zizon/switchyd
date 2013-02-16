@@ -462,20 +462,6 @@ function handIn(){
     schedule();
 }
 
-chrome.runtime.onInstalled.addListener(function(details){
-    console.log("install..");
-    switch(details.reason){
-        case "install":
-        case "update":
-        case "chrome_update":
-            console.log(details.reason);
-            break;
-    }
-    
-   handIn();
-});
-
-chrome.runtime.onStartup.addListener(function(){
-    console.log("starup");
-    handIn();
-});
+(function(){
+	handIn();
+})();
