@@ -360,7 +360,12 @@ function schedule(){
 				// update counter in marks.
 				var lookup = hints.genLookup();
 				for( var key in hints.complete ){
-					var match = hints.match(key,lookup,true);
+                    if( key in hints.marks ){
+                        hints.marks[key] += hints.complete[key];
+                        continue;
+                    }
+					
+                    var match = hints.match(key,lookup,false);
 					if( match["fuzzy"] ){
 						hints.marks[match["context"].reverse().join(".")] += hints.complete[key];
 					}
