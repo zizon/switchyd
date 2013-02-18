@@ -83,63 +83,7 @@ var hints ={
 		
 		return lookup;
 	},
-	
-    "optimize":function(){
-        var empty = function(lookup){
-            // test if lookup are empty
-            for( var key in lookup ){
-                if( key != "*" ){
-                    return false;
-                }
-            }
-            
-            return true;
-        }
-        
-        var lookup = this.genLookup();
-        var marks = this.marks;
-        for( var key in marks ){
-            key.split(".").reduceRight(function( previous, current, index, array ){
-                    if( previous["giveup"] ){
-                        return previous;
-                    }
-                    
-                    var lookup = previous["lookup"];
-                    if( !(current in lookup) ){
-                        // not in lookup,it may be newly added,ignore
-                        previous["giveup"] = true;
-                        return previous;
-                    }
-                    
-                    var mergable = true;
-                    for( var child in lookup ){
-                        mergable = mergable && empty(lookup[child]);
-                    }
-                    
-                    var context = previous["context"];
-                    if( mergable ){
-                        context.push("*")
-                        var new_key = context.join(".");
-                        if( !(new_key in marks) ){
-                            marks[context.reverse().join(".")] = 1;
-                        }
-                        previous["giveup"] = true;
-                    }else{
-                        context.push(current);
-                        previous["lookup"] = lookup[current];
-                    }
-                    
-                    return previous;
-                },
-                {
-                    "context":[],
-                    "lookup":lookup,
-                    "giveup":false
-                }
-            );
-        }
-    },
-    
+	  
 	"match":function(host,lookup,create_when_miss){
 		return host.split(".").reduceRight(function( previous, current, index, array ){
 				// if already meet a fuzzy,ignore
@@ -192,89 +136,75 @@ var hints ={
             return;
         }
         
-		// lookup table
-        var lookup = {};
-
-		// eliminate
-		var this_hints = this;
-		var eliminate = function( context, current_lookup ){
-			for( var key in current_lookup ){
-				// ignore fuzzy itself
-				if( key == "*" ){
-					continue;
-				}
-				
-				// sweep children
-				context.push(key);
-				eliminate(context,current_lookup[key]);
-				delete this_hints.marks[context.reverse().join(".")];
-				context.reverse();
-				context.pop();
-			}
-		}
-        
-        var sum = function( counter, context, current_lookup ){
+        var sum = function( counter, lookup ){
             var leaf = true;
-            for( var key in current_lookup ){
+            for( var key in lookup ){
                 leaf = false;
+                counter += sum(0,lookup[key]);
+            }
+            return counter;
+        }
+        
+		// lookup table
+        var lookup = this.genLookup();
+        for( var key in this.marks ){
+            var match = this.match(key,lookup,false);
+            
+            // match a fuzzy
+            if( match["fuzzy"] ){
+                if( key.indexOf("*") == -1 ){
+                    // not a fuzzy key.
+                    // sum child,and delete
+                    this.marks[match["context"].reverse().join(".")] += this.marks[key];
+                    delete this.marks[key];
+                }
+
+                continue;
+            }
+ 
+            // not match any fuzzy,try optimize
+            var parent = key.split(".");
+            parent.reverse();
+            parent.pop();
+            
+            var tail = parent.reduce(function( previous, current, index, array ){
+                    return previous[current];
+                },
+                lookup
+            );
+            
+            var mergable = true;
+            var counter = 0;
+            var children = [];
+            for( var child in tail ){
+                for( var grandchild in tail[child] ){
+                    mergable = false;
+                    break;
+                }
                 
-                // do not counter fuzzy
-                if( key == "*" ){
+                if( mergable ){
+                    // child is empty,update counter
+                    parent.push(child);
+                    var child_key = parent.reverse().join(".");
+                    parent.reverse();
+                    parent.pop();
+
+                    children.push(child_key);
+                    counter += this.marks[child_key];
                     continue;
                 }
                 
-                context.push(key);
-                counter += sum(counter,context,current_lookup[key]);
-                delete this_hints.marks[context.reverse().join(".")];
-				context.reverse();
-				context.pop(); 
+                break;
             }
             
-            if(leaf){
-                var index = context.reverse().join(".");
-                context.reverse();
+            if( mergable ){
+                for( var child in children ){
+                    delete this.marks[child];
+                }
                 
-                counter += this_hints.marks[index];
-                delete this_hints.marks[index];
+                parent.push("*");
+                this.marks[parent.reverse().join(".")] = counter;
             }
-            
-            return counter;
-        }
-		
-        for( var key in this.marks ){
-            if( this.marks[key] <= 0 ){
-                delete this.marks[key];
-                continue;
-            }
-			
-			var match = this.match(key,lookup,true);
-			
-			// match fuzzy
-			if( match["fuzzy"] ){
-				// it is not fuzzy,delete it
-				if( key.indexOf("*") == -1 ){
-					delete this.marks[key];
-					continue;
-				}
-				
-				// it is a fuzzy,sweep child
-                var current = match["lookup"];
-				var stack = match["context"];
-                
-                // pop "*" symbol
-                stack.pop();
-                
-				// loop each child and deep down.
-				// delete all of it.
-				for( var child in current ){
-					// optimize case,ignore fuzzy
-					if( child != "*" ){
-						stack.push(child);
-						this.marks[key] += sum(0,stack,current[child]);
-						stack.pop();
-					}
-				}
-			}
         }
     },
     
@@ -414,9 +344,6 @@ function schedule(){
         console.log("fire alarm:" + alarm.name);
         switch(alarm.name){
 			case "codegen":
-                chrome.proxy.settings.clear({});
-
-
                 chrome.proxy.settings.set(
                     {
                         "value":{
@@ -440,7 +367,6 @@ function schedule(){
                 break
             case "sweep-hints-marks":
 				// compact first,make it shorter
-                hints.optimize();
 				hints.compact();
 				
 				// loop hints.complete list,
