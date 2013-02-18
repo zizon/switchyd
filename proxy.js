@@ -219,6 +219,24 @@ var hints ={
     },
     
     "codegen":function(){
+        chrome.proxy.settings.set(
+            {
+                "value":{
+                    "mode":"pac_script",
+                    "pacScript":{
+                        "mandatory":true,
+                        "data":engine.gen(hints)
+                    }
+                }
+            },
+            
+            function(){
+                console.log("setting apply");
+            }
+        );
+    },
+    
+    "asyncCodegen":function(){
         chrome.alarms.get("codegen",function(alarm){
             if( alarm == undefined ){
                 console.log("async codgen")
@@ -229,7 +247,7 @@ var hints ={
                     }
                 );
             }
-        })
+        });
     },
     
     "markFail":function(host){
@@ -239,12 +257,12 @@ var hints ={
                 if( --this.marks[host] <= 0 ){
 					// proxy fail much,remove from proxy
                     delete this.marks[host];
-                    this.codegen();
+                    this.asyncCodegen();
                 }
             }else{
 				// not in proxy yet,add it
                 this.marks[host] = 2;
-                this.codegen();
+                this.asyncCodegen();
             }
     }
 }
@@ -344,21 +362,7 @@ function schedule(){
         console.log("fire alarm:" + alarm.name);
         switch(alarm.name){
 			case "codegen":
-                chrome.proxy.settings.set(
-                    {
-                        "value":{
-                            "mode":"pac_script",
-                            "pacScript":{
-                                "mandatory":true,
-                                "data":engine.gen(hints)
-                            }
-                        }
-                    },
-                    function(){
-                        console.log("setting apply");
-                    }
-                );
-
+                hints.codegen();
                 break;
             case "sync-to-cloud":
                 chrome.storage.sync.set(hints["marks"],function(){
@@ -389,6 +393,7 @@ function schedule(){
 				
 				console.log("sync-local-cache");
 				localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
+                
                 break;
         }
     });
