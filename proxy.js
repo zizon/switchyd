@@ -36,6 +36,7 @@ var config = {
 var engine = {
     "gen":function(hints){
         // build lookup
+        console.log(hints);
         var lookup = hints.genLookup();
 		var marks = hints.marks;
         
@@ -49,8 +50,7 @@ var engine = {
                 return servers;
             }
 			
-			var match = matchFuzzy(host,lookup,false);
-			return match["fuzzy"] || match["giveup"] ? servers : "DIRECT;";
+			return matchFuzzy(host,lookup,false)["fuzzy"] ? servers : "DIRECT;";
         }
         
         return "var lookup = " + JSON.stringify(lookup) + ";\n"
@@ -204,26 +204,17 @@ var hints ={
     },
     
     "codegen":function(){
-        chrome.proxy.settings.clear({});
-
-        chrome.proxy.onProxyError.addListener(function(details){
-            console.error("proxy error:" + details);
-        });
-
-        chrome.proxy.settings.set(
-            {
-                "value":{
-                    "mode":"pac_script",
-                    "pacScript":{
-                        "mandatory":true,
-                        "data":engine.gen(this)
+        chrome.alarms.get("codegen",function(alarm){
+            if( alarm == undefined ){
+                console.log("async codgen")
+                chrome.alarms.create(
+                    "codegen",
+                    {
+                        "when":Date.now()+500
                     }
-                }
-            },
-            function(){
-                console.log("setting apply");
+                );
             }
-        );
+        })
     },
     
     "markFail":function(host){
@@ -332,6 +323,32 @@ function schedule(){
     chrome.alarms.onAlarm.addListener(function( alarm ){
         console.log("fire alarm:" + alarm.name);
         switch(alarm.name){
+			case "codegen":
+                chrome.proxy.settings.clear({});
+
+                chrome.proxy.onProxyError.addListener(function(details){
+                    console.error("proxy error:" + details);
+                });
+
+                chrome.proxy.settings.set(
+                    {
+                        "value":{
+                            "mode":"pac_script",
+                            "pacScript":{
+                                "mandatory":true,
+                                "data":engine.gen(hints)
+                            }
+                        }
+                    },
+                    function(){
+                        console.log("setting apply");
+                    }
+                );
+                
+                // cleanup
+                chrome.alarms.clear("codegen");
+                
+                break;
             case "sync-to-cloud":
                 chrome.storage.sync.set(hints["marks"],function(){
                     console.log("sync to cloud");
