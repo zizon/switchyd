@@ -84,6 +84,62 @@ var hints ={
 		return lookup;
 	},
 	
+    "optimize":function(){
+        var empty = function(lookup){
+            // test if lookup are empty
+            for( var key in lookup ){
+                if( key != "*" ){
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+        
+        var lookup = this.genLookup();
+        var marks = this.marks;
+        for( var key in marks ){
+            key.split(".").reduceRight(function( previous, current, index, array ){
+                    if( previous["giveup"] ){
+                        return previous;
+                    }
+                    
+                    var lookup = previous["lookup"];
+                    if( !(current in lookup) ){
+                        // not in lookup,it may be newly added,ignore
+                        previous["giveup"] = true;
+                        return previous;
+                    }
+                    
+                    var mergable = true;
+                    for( var child in lookup ){
+                        mergable = mergable && empty(lookup[child]);
+                    }
+                    
+                    var context = previous["context"];
+                    if( mergable ){
+                        context.push("*")
+                        var new_key = context.join(".");
+                        if( !(new_key in marks) ){
+                            marks[context.reverse().join(".")] = 1;
+                        }
+                        previous["giveup"] = true;
+                    }else{
+                        context.push(current);
+                        previous["lookup"] = lookup[current];
+                    }
+                    
+                    return previous;
+                },
+                {
+                    "context":[],
+                    "lookup":lookup,
+                    "giveup":false
+                }
+            );
+        }
+    },
+    
 	"match":function(host,lookup,create_when_miss){
 		return host.split(".").reduceRight(function( previous, current, index, array ){
 				// if already meet a fuzzy,ignore
@@ -94,7 +150,7 @@ var hints ={
 				var lookup = previous["lookup"];
 					
 				// see if current context has fuzzy
-				if( "*" in lookup ){
+				if( "*" in lookup || current == "*" ){
 					// mark it
 					previous["fuzzy"] = true;
 					
@@ -156,6 +212,34 @@ var hints ={
 				context.pop();
 			}
 		}
+        
+        var sum = function( counter, context, current_lookup ){
+            var leaf = true;
+            for( var key in current_lookup ){
+                leaf = false;
+                
+                // do not counter fuzzy
+                if( key == "*" ){
+                    continue;
+                }
+                
+                context.push(key);
+                counter += sum(counter,context,current_lookup[key]);
+                delete this_hints.marks[context.reverse().join(".")];
+				context.reverse();
+				context.pop(); 
+            }
+            
+            if(leaf){
+                var index = context.reverse().join(".");
+                context.reverse();
+                
+                counter += this_hints.marks[index];
+                delete this_hints.marks[index];
+            }
+            
+            return counter;
+        }
 		
         for( var key in this.marks ){
             if( this.marks[key] <= 0 ){
@@ -173,18 +257,20 @@ var hints ={
 					continue;
 				}
 				
-				// or eliminate not fuzzy
-				
+				// it is a fuzzy,sweep child
+                var current = match["lookup"];
 				var stack = match["context"];
-				var current = match["lookup"];
-		
+                
+                // pop "*" symbol
+                stack.pop();
+                
 				// loop each child and deep down.
 				// delete all of it.
-				for( var key in current ){
+				for( var child in current ){
 					// optimize case,ignore fuzzy
-					if( key != "*" ){
-						stack.push(key);
-						eliminate(stack,current[key]);
+					if( child != "*" ){
+						stack.push(child);
+						this.marks[key] += sum(0,stack,current[child]);
 						stack.pop();
 					}
 				}
@@ -354,6 +440,7 @@ function schedule(){
                 break
             case "sweep-hints-marks":
 				// compact first,make it shorter
+                hints.optimize();
 				hints.compact();
 				
 				// loop hints.complete list,
