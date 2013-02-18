@@ -36,7 +36,6 @@ var config = {
 var engine = {
     "gen":function(hints){
         // build lookup
-        console.log(hints);
         var lookup = hints.genLookup();
 		var marks = hints.marks;
         
@@ -267,6 +266,11 @@ function extractHost(url){
 
 function handInRequest(){
     console.log("handin request");
+    
+    chrome.proxy.onProxyError.addListener(function(details){
+        console.error("proxy error:" + details);
+    });
+    
     chrome.webRequest.onErrorOccurred.addListener(
         function(details){
             console.error(details);
@@ -326,9 +330,6 @@ function schedule(){
 			case "codegen":
                 chrome.proxy.settings.clear({});
 
-                chrome.proxy.onProxyError.addListener(function(details){
-                    console.error("proxy error:" + details);
-                });
 
                 chrome.proxy.settings.set(
                     {
@@ -344,10 +345,7 @@ function schedule(){
                         console.log("setting apply");
                     }
                 );
-                
-                // cleanup
-                chrome.alarms.clear("codegen");
-                
+
                 break;
             case "sync-to-cloud":
                 chrome.storage.sync.set(hints["marks"],function(){
@@ -373,6 +371,7 @@ function schedule(){
 				
 				console.log("sync-local-cache");
 				localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
+                break;
         }
     });
 }
