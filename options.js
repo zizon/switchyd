@@ -100,7 +100,7 @@ document.addEventListener("DOMContentLoaded",function(){
             chrome.runtime.getBackgroundPage(function(app){
                 app.config = servers.join(";");
                 app.syncProxyConfig();
-                app.hints.asyncCodegen();
+                app.hints.codegen();
             })
             
             // start button effect

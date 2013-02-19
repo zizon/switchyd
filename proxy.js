@@ -282,20 +282,6 @@ var hints ={
         );
     },
     
-    "asyncCodegen":function(){
-        chrome.alarms.get("codegen",function(alarm){
-            if( alarm == undefined ){
-                console.log("async codgen")
-                chrome.alarms.create(
-                    "codegen",
-                    {
-                        "when":Date.now()+200
-                    }
-                );
-            }
-        });
-    },
-    
     "markFail":function(host){
             // if host is in proxy.
 			// update marks
@@ -304,12 +290,12 @@ var hints ={
 					// proxy fail much,remove from proxy
                     console.log("drop proxy:" + host);
                     delete this.marks[host];
-                    this.asyncCodegen();
+                    this.codegen();
                 }
             }else{
 				// not in proxy yet,add it
                 this.marks[host] = 2;
-                this.asyncCodegen();
+                this.codegen();
             }
     }
 }
@@ -323,7 +309,7 @@ function syncFromCloud(){
         }
         
         if( hints.compact() ){
-            hints.asyncCodegen();
+            hints.codegen();
         }
     });
 }
@@ -425,7 +411,7 @@ function schedule(){
             case "sweep-hints-marks":
 				// compact first,make it shorter
 				if( hints.compact() ){
-                    hints.asyncCodegen();
+                    hints.codegen();
                 }
 				
 				// loop hints.complete list,
