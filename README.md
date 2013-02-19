@@ -2,6 +2,10 @@ switchyd
 ----
 chrome plugin that mainly focus on aotomatic proxing [GFWed](http://en.wikipedia.org/wiki/GFW) sites.
 
+Install
+----
+[Google Chrome Web Store](http://goo.gl/Dw6qb)
+
 What it does & How it works
 ----
 detect failed site request and add it to generated pac scripts.
