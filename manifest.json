@@ -7,6 +7,8 @@
         "persistent": true,
         "scripts": ["proxy.js"]
     },
+    
+
 
 	"permissions": [
         "alarms",

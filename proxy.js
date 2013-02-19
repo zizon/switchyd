@@ -147,6 +147,7 @@ var hints ={
         
 		// lookup table
         var lookup = this.genLookup();
+        var gen = false;
         for( var key in this.marks ){
             var match = this.match(key,lookup,false);
             
@@ -204,7 +205,12 @@ var hints ={
                 
                 parent.push("*");
                 this.marks[parent.reverse().join(".")] = counter;
+                gen = true;
             }
+        }
+        
+        if( gen ){
+            this.asyncCodegen();
         }
     },
     
@@ -290,7 +296,6 @@ function resoreHints(){
     }
     
 	hints.compact();
-    hints.codegen();
 }
 
 function extractHost(url){
@@ -393,7 +398,6 @@ function schedule(){
 				
 				console.log("sync-local-cache");
 				localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
-                
                 break;
         }
     });
