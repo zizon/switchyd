@@ -278,6 +278,10 @@ function syncFromCloud(){
         for(var key in items){
             marks[key] = items[key];
         }
+        
+        if( hints.compact() ){
+            hints.asyncCodegen();
+        }
     });
 }
 
