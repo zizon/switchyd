@@ -98,7 +98,7 @@ document.addEventListener("DOMContentLoaded",function(){
             }
             
             chrome.runtime.getBackgroundPage(function(app){
-                app.config = servers.join(";");
+                app.config["servers"] = servers.join(";");
                 app.syncProxyConfig();
                 app.hints.codegen();
             })
