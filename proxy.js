@@ -209,9 +209,7 @@ var hints ={
             }
         }
         
-        if( gen ){
-            this.asyncCodegen();
-        }
+        return gen;
     },
     
     "markOK":function(host){
@@ -296,6 +294,7 @@ function resoreHints(){
     }
     
 	hints.compact();
+    hints.codegen();
 }
 
 function extractHost(url){
@@ -376,7 +375,9 @@ function schedule(){
                 break
             case "sweep-hints-marks":
 				// compact first,make it shorter
-				hints.compact();
+				if( hints.compact() ){
+                    hints.asyncCodegen();
+                }
 				
 				// loop hints.complete list,
 				// update counter in marks.
