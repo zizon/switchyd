@@ -158,8 +158,17 @@ var hints ={
                     // sum child,and delete
                     this.marks[match["context"].reverse().join(".")] += this.marks[key];
                     delete this.marks[key];
+                    continue;
                 }
-
+                
+                // optimize case
+                // it is a fuzzy,but not match itself.
+                // so it must be match bu parent fuzzy and can be drop
+                var new_key = match["context"].reverse().join(".");
+                if( key != new_key ){
+                    this.marks[new_key] += this.marks[key];
+                    delete this.marks[key];
+                }
                 continue;
             }
  
@@ -185,6 +194,7 @@ var hints ={
                         mergable = false;
                         break;
                     }else{
+                        // optimize case
                         fuzzy = true;
                     }
                 }
@@ -194,6 +204,7 @@ var hints ={
                     // update counter
                     var child_key;
                     if( fuzzy ){
+                        // optimize case
                         parent.push(child);
                         parent.push("*");
                         child_key = parent.reverse().join(".");
