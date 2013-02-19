@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded",function(){
         // restore config
         chrome.runtime.getBackgroundPage(function(app){
                 //get configs
-                var servers = app.config.split(";").reduce(function( previous, current, index, array ){
+                var servers = app.config["servers"].split(";").reduce(function( previous, current, index, array ){
                         if( (current = current.trim()).length <= 0 ){
                             return previous;
                         }
