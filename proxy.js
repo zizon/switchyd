@@ -289,7 +289,7 @@ var hints ={
                 chrome.alarms.create(
                     "codegen",
                     {
-                        "when":Date.now()+500
+                        "when":Date.now()+200
                     }
                 );
             }
