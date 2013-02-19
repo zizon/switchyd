@@ -178,18 +178,35 @@ var hints ={
             var counter = 0;
             var children = [];
             for( var child in tail ){
+                // case:all children have no sub domain
+                var fuzzy = false;
                 for( var grandchild in tail[child] ){
-                    mergable = false;
-                    break;
+                    if( grandchild != "*" ){
+                        mergable = false;
+                        break;
+                    }else{
+                        fuzzy = true;
+                    }
                 }
                 
                 if( mergable ){
-                    // child is empty,update counter
-                    parent.push(child);
-                    var child_key = parent.reverse().join(".");
-                    parent.reverse();
-                    parent.pop();
-
+                    // child is empty or with a fuzzy
+                    // update counter
+                    var child_key;
+                    if( fuzzy ){
+                        parent.push(child);
+                        parent.push("*");
+                        child_key = parent.reverse().join(".");
+                        parent.reverse();
+                        parent.pop();
+                        parent.pop();
+                    }else{
+                        parent.push(child);
+                        child_key = parent.reverse().join(".");
+                        parent.reverse();
+                        parent.pop();
+                    }
+                        
                     children.push(child_key);
                     counter += this.marks[child_key];
                     continue;
