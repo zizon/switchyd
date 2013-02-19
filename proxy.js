@@ -133,7 +133,7 @@ var hints ={
         // easy job
         if( "*" in this.marks ){
             this.marks = {"*":2};
-            return;
+            return true;
         }
         
         var sum = function( counter, lookup ){
@@ -199,13 +199,16 @@ var hints ={
             }
             
             if( mergable ){
-                for( var child in children ){
-                    delete this.marks[child];
+                // do not merge short domains
+                if( parent.length >= 2 ){
+                    for( var child in children ){
+                        delete this.marks[child];
+                    }
+                    
+                    parent.push("*");
+                    this.marks[parent.reverse().join(".")] = counter;
+                    gen = true;
                 }
-                
-                parent.push("*");
-                this.marks[parent.reverse().join(".")] = counter;
-                gen = true;
             }
         }
         
