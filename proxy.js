@@ -67,7 +67,7 @@ function syncProxyConfig(){
 function restoreProxyConfig(){
     var stored = localStorage.getItem("proxy.config");
     if( stored != null ){
-        config = stored;
+        config = JSON.parse(stored);
     }
 }
 
