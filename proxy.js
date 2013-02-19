@@ -60,6 +60,17 @@ var engine = {
     }
 }
 
+function syncProxyConfig(){
+    localStorage.setItem("proxy.config",JSON.stringify(config));
+}
+
+function restoreProxyConfig(){
+    var stored = localStorage.getItem("proxy.config");
+    if( stored != null ){
+        config = stored;
+    }
+}
+
 var hints ={
     "marks":{},
 	
@@ -291,6 +302,7 @@ var hints ={
             if( host in this.marks ){
                 if( --this.marks[host] <= 0 ){
 					// proxy fail much,remove from proxy
+                    console.log("drop proxy:" + host);
                     delete this.marks[host];
                     this.asyncCodegen();
                 }
@@ -442,6 +454,7 @@ function schedule(){
 }
 
 function handIn(){
+    restoreProxyConfig();
     syncFromCloud();
     resoreHints();
     handInRequest();

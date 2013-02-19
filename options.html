@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style type="text/css">
+            .container{
+                width:800px;
+                margin-left:auto;
+                margin-right:auto;
+            }
+            
+            .input-slot{
+                width:300px;
+                display:inline-block;
+                text-align:center;
+                margin-right:4px;
+                margin-left:4px;
+            }
+            
+            .clickable{
+                cursor:pointer;
+            }
+            
+            .button{
+                border:solid 2px hsl(222,38%,84%);
+                padding:1px;
+                text-align: center;
+                width:61px;
+                float:right;
+            }
+            
+            #message{
+                text-align:center;
+                color:hsl(222, 61%, 61%);
+                display:none;
+            }
+        </style>
+        <script src="options.js"></script>
+    </head>
+    <body>
+        <div id="main">
+            <div id="message" class="container">
+                <text>SETTING APPAY!</text>
+            </div>
+            <div id="config" class="container">
+                <div class="row">
+                    <select>
+                        <option value="SOCKS5" selected>SOCKS5</option>
+                        <option value="HTTP">HTTP</option>
+                        <option value="HTTPS">HTTPS</option>
+                    </select>
+                    <span>
+                        <input class="input-slot" type="text" value="127.0.0.1" name="server"></input>:<input class="input-slot" value="10086" name="port"></input>
+                    </span>
+                    <text class="add clickable">+</text>
+                    <text class="remove clickable">-</text>
+                </div>
+            </div>
+            <div class="container">
+                <text id="save" class="clickable button">save</text>
+            </div>
+        </div>
+    </body>
+</html> 
