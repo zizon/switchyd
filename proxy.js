@@ -369,8 +369,10 @@ function schedule(){
                 hints.codegen();
                 break;
             case "sync-to-cloud":
-                chrome.storage.sync.set(hints["marks"],function(){
-                    console.log("sync to cloud");
+                chrome.storage.sync.clear(function(){
+                    chrome.storage.sync.set(hints["marks"],function(){
+                        console.log("sync to cloud");
+                    });
                 });
                 break
             case "sweep-hints-marks":
