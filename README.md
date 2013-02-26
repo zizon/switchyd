@@ -13,7 +13,7 @@ in most of the case,you need just refresh the page a seconrd time to meet the no
 
 failure include:
 - net::ERR_CONNECTION_RESET  
-- net::ERR_CONNECTION_ABORTED  
+- net::ERR_SOCKET_NOT_CONNECTED  
 - net::ERR_CONNECTION_TIMED_OUT  
 
 Permissions

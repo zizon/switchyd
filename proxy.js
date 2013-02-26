@@ -37,25 +37,25 @@ var engine = {
     "gen":function(hints){
         // build lookup
         var lookup = hints.genLookup();
-		var marks = hints.marks;
+        var marks = hints.marks;
         
         var servers = config["servers"] + ";DIRECT;";
         
-		var matchFuzzy = hints.match;
-		
+        var matchFuzzy = hints.match;
+        
         //gen template
         var template = function(url,host){
             if( host in marks ){
                 return servers;
             }
-			
-			return matchFuzzy(host,lookup,false)["fuzzy"] ? servers : "DIRECT;";
+            
+            return matchFuzzy(host,lookup,false)["fuzzy"] ? servers : "DIRECT;";
         }
         
         return "var lookup = " + JSON.stringify(lookup) + ";\n"
             +   "var marks = " + JSON.stringify(marks) + ";\n"
             +   "var servers = '" + servers + "'\n"
-			+	"var matchFuzzy = " + matchFuzzy.toString() + "\n"
+            +   "var matchFuzzy = " + matchFuzzy.toString() + "\n"
             +   "var FindProxyForURL = " + template.toString(); 
     }
 }
@@ -73,12 +73,12 @@ function restoreProxyConfig(){
 
 var hints ={
     "marks":{},
-	
-	"complete":{},
-	
-	"genLookup":function(){
-		var lookup = {};
-		var marks = this.marks;
+    
+    "complete":{},
+    
+    "genLookup":function(){
+        var lookup = {};
+        var marks = this.marks;
         for(var key in marks){
             if( marks[key] <= 0 ){
                 delete marks[key];
@@ -91,55 +91,55 @@ var hints ={
                 lookup
             );
         }
-		
-		return lookup;
-	},
-	  
-	"match":function(host,lookup,create_when_miss){
-		return host.split(".").reduceRight(function( previous, current, index, array ){
-				// if already meet a fuzzy,ignore
-				if( previous["fuzzy"] || previous["giveup"] ){
-					return previous;
-				}
-					
-				var lookup = previous["lookup"];
-					
-				// see if current context has fuzzy
-				if( "*" in lookup || current == "*" ){
-					// mark it
-					previous["fuzzy"] = true;
-					
-					// save match context
-					previous["context"].push("*");
-					return previous;
-				}
-					
-				if( current in lookup ){
-					// match , deep down
-					previous["lookup"] = lookup[current];
-					previous["context"].push(current);
-					return previous;
-				}
-				
-				// not match,
-				if( create_when_miss ){
-					previous["lookup"] = lookup[current] = {};
-					previous["context"].push(current);
-					return previous;
-				}else{
-					previous["giveup"] = true;
-					return previous;
-				}
-			},
-			{
-				"lookup":lookup,
-				"fuzzy":false,
-				"giveup":false,
-				"context":[]
-			}
-		);
-	},
-	
+        
+        return lookup;
+    },
+      
+    "match":function(host,lookup,create_when_miss){
+        return host.split(".").reduceRight(function( previous, current, index, array ){
+                // if already meet a fuzzy,ignore
+                if( previous["fuzzy"] || previous["giveup"] ){
+                    return previous;
+                }
+                    
+                var lookup = previous["lookup"];
+                    
+                // see if current context has fuzzy
+                if( "*" in lookup || current == "*" ){
+                    // mark it
+                    previous["fuzzy"] = true;
+                    
+                    // save match context
+                    previous["context"].push("*");
+                    return previous;
+                }
+                    
+                if( current in lookup ){
+                    // match , deep down
+                    previous["lookup"] = lookup[current];
+                    previous["context"].push(current);
+                    return previous;
+                }
+                
+                // not match,
+                if( create_when_miss ){
+                    previous["lookup"] = lookup[current] = {};
+                    previous["context"].push(current);
+                    return previous;
+                }else{
+                    previous["giveup"] = true;
+                    return previous;
+                }
+            },
+            {
+                "lookup":lookup,
+                "fuzzy":false,
+                "giveup":false,
+                "context":[]
+            }
+        );
+    },
+    
     "compact":function(){
         // easy job
         if( "*" in this.marks ){
@@ -156,7 +156,7 @@ var hints ={
             return counter;
         }
         
-		// lookup table
+        // lookup table
         var lookup = this.genLookup();
         var gen = false;
         for( var key in this.marks ){
@@ -260,8 +260,8 @@ var hints ={
                 this.complete[host]++;
             }
         }else{
-			this.complete[host] = 1;
-		}
+            this.complete[host] = 1;
+        }
     },
     
     "codegen":function(){
@@ -284,16 +284,16 @@ var hints ={
     
     "markFail":function(host){
             // if host is in proxy.
-			// update marks
+            // update marks
             if( host in this.marks ){
                 if( --this.marks[host] <= 0 ){
-					// proxy fail much,remove from proxy
+                    // proxy fail much,remove from proxy
                     console.log("drop proxy:" + host);
                     delete this.marks[host];
                     this.codegen();
                 }
             }else{
-				// not in proxy yet,add it
+                // not in proxy yet,add it
                 this.marks[host] = 2;
                 this.codegen();
             }
@@ -326,7 +326,7 @@ function resoreHints(){
         hints.marks[key] = cache[key];
     }
     
-	hints.compact();
+    hints.compact();
     hints.codegen();
 }
 
@@ -351,9 +351,9 @@ function handInRequest(){
                 default:
                     return;
                 case "net::ERR_CONNECTION_RESET":
-                case "net::ERR_CONNECTION_ABORTED":
+                case "net::ERR_SOCKET_NOT_CONNECTED":
                 case "net::ERR_CONNECTION_TIMED_OUT":
-					hints.markFail(extractHost(details.url));
+                    hints.markFail(extractHost(details.url));
                     break;
             }
         },
@@ -398,7 +398,7 @@ function schedule(){
     chrome.alarms.onAlarm.addListener(function( alarm ){
         console.log("fire alarm:" + alarm.name);
         switch(alarm.name){
-			case "codegen":
+            case "codegen":
                 hints.codegen();
                 break;
             case "sync-to-cloud":
@@ -409,31 +409,31 @@ function schedule(){
                 });
                 break
             case "sweep-hints-marks":
-				// compact first,make it shorter
-				if( hints.compact() ){
+                // compact first,make it shorter
+                if( hints.compact() ){
                     hints.codegen();
                 }
-				
-				// loop hints.complete list,
-				// update counter in marks.
-				var lookup = hints.genLookup();
-				for( var key in hints.complete ){
+                
+                // loop hints.complete list,
+                // update counter in marks.
+                var lookup = hints.genLookup();
+                for( var key in hints.complete ){
                     if( key in hints.marks ){
                         hints.marks[key] += hints.complete[key];
                         continue;
                     }
-					
+                    
                     var match = hints.match(key,lookup,false);
-					if( match["fuzzy"] ){
-						hints.marks[match["context"].reverse().join(".")] += hints.complete[key];
-					}
-				}
-				
-				// clear
-				hints.complete = {};
-				
-				console.log("sync-local-cache");
-				localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
+                    if( match["fuzzy"] ){
+                        hints.marks[match["context"].reverse().join(".")] += hints.complete[key];
+                    }
+                }
+                
+                // clear
+                hints.complete = {};
+                
+                console.log("sync-local-cache");
+                localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
                 break;
         }
     });
@@ -448,5 +448,5 @@ function handIn(){
 }
 
 (function(){
-	handIn();
+    handIn();
 })();
