@@ -322,7 +322,7 @@ function resoreHints(){
     }
     
     cache = JSON.parse(cache);
-    for( key in cache ){
+    for( var key in cache ){
         hints.marks[key] = cache[key];
     }
     
