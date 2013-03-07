@@ -39,6 +39,18 @@ var engine = {
         var lookup = hints.genLookup();
         var marks = hints.marks;
         
+        // backward compatible
+        config["servers"] = config["servers"].split(";").map(function(i){
+            i=i.trim()
+            if(i.indexOf("HTTPS") == 0){
+                return "PROXY " + i.substr(5);
+            }else if(i.indexOf("HTTP") == 0){
+                return "PROXY " + i.substr(4);
+            }else{
+                return i;
+            }
+        }).join(";");
+        
         var servers = config["servers"] + ";DIRECT;";
         
         var matchFuzzy = hints.match;
