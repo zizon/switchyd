@@ -309,6 +309,27 @@ var hints ={
                 this.marks[host] = 2;
                 this.codegen();
             }
+    },
+      
+    "evict":function(){
+        var register = 0;
+        var gen = false;
+        for(var host in this.marks){
+            register = Math.floor(this.marks[host] / 2);
+            switch(register){
+                case 0:
+                    delete this.marks[host];
+                    gen = true;
+                    break;
+                default :
+                    this.marks[host] = register;
+                    break;
+            }
+        }
+        
+        if( gen ){
+            this.codegen();
+        }
     }
 }
 
@@ -407,6 +428,17 @@ function schedule(){
         }
     );
     
+    {
+        var eviction = Date.now();
+        eviction = eviction - eviction%86400000 + 43200000;
+        chrome.alarms.create(
+            "hints-eviction",
+            {
+                "when":eviction
+            }
+        );
+    }
+    
     chrome.alarms.onAlarm.addListener(function( alarm ){
         console.log("fire alarm:" + alarm.name);
         switch(alarm.name){
@@ -446,6 +478,15 @@ function schedule(){
                 
                 console.log("sync-local-cache");
                 localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
+                break;
+            case "hints-eviction":
+                hints.evict();
+                chrome.alarms.create(
+                    "hints-eviction",
+                    {
+                        "when":alarm.scheduledTime + 86400000
+                    }
+                );
                 break;
         }
     });
