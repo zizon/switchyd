@@ -88,6 +88,8 @@ var hints ={
     
     "complete":{},
     
+    "candidate":{},
+    
     "genLookup":function(){
         var lookup = {};
         var marks = this.marks;
@@ -310,10 +312,22 @@ var hints ={
                 this.codegen();
             }
     },
+    
+    "mayFail":function(host){
+        if( host in this.candidate ){
+            if( ++this.candidate[host] > 3 ){
+                console.log("much time out/abort promote to marks:" + host);
+                this.markFail(host);
+            }
+        }else{
+            this.candidate[host] = 1;
+        }
+    },
       
     "evict":function(){
         var register = 0;
         var gen = false;
+        
         for(var host in this.marks){
             register = Math.floor(this.marks[host] / 2);
             switch(register){
@@ -384,9 +398,11 @@ function handInRequest(){
                 default:
                     return;
                 case "net::ERR_CONNECTION_RESET":
+                    hints.markFail(extractHost(details.url));
+                    break;
                 case "net::ERR_CONNECTION_ABORTED":
                 case "net::ERR_CONNECTION_TIMED_OUT":
-                    hints.markFail(extractHost(details.url));
+                    hints.mayFail(extractHost(details.url));
                     break;
             }
         },
@@ -453,6 +469,9 @@ function schedule(){
                 });
                 break
             case "sweep-hints-marks":
+                // clear candidate
+                hints.candidate = {};
+                
                 // compact first,make it shorter
                 if( hints.compact() ){
                     hints.codegen();
@@ -475,7 +494,6 @@ function schedule(){
                 
                 // clear
                 hints.complete = {};
-                
                 console.log("sync-local-cache");
                 localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
                 break;
