@@ -376,10 +376,10 @@ function handInRequest(){
                 default:
                     return;
                 case "net::ERR_CONNECTION_RESET":
+				case "net::ERR_CONNECTION_TIMED_OUT":
                     hints.markFail(extractHost(details.url));
                     break;
                 case "net::ERR_CONNECTION_ABORTED":
-                case "net::ERR_CONNECTION_TIMED_OUT":
                     hints.mayFail(extractHost(details.url));
                     break;
             }
