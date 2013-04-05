@@ -33,6 +33,38 @@
                 color:hsl(222, 61%, 61%);
                 display:none;
             }
+            
+            .template {
+                display:none;
+            }
+            
+            .inline {
+                display:inline-block;
+            }
+            
+            .tab {
+                width:61px;
+                padding:1px;
+                text-align: center;
+            }
+            
+            .tab-active{
+                border-bottom:0px;
+                border-top:2px solid hsl(222,38%,61%);
+                border-left:2px solid hsl(222,38%,61%);
+                border-right:2px solid hsl(222,38%,61%);
+            }
+            
+            .tab-semi-active{
+                border-bottom:0px;
+                border-top:2px solid hsl(222,38%,84%);
+                border-left:2px solid hsl(222,38%,84%);
+                border-right:2px solid hsl(222,38%,84%);
+            }
+            
+            .hidden {
+                display:none;
+            }
         </style>
         <script src="options.js"></script>
     </head>
@@ -41,21 +73,42 @@
             <div id="message" class="container">
                 <text>SETTING APPAY!</text>
             </div>
-            <div id="config" class="container">
-                <div class="row">
-                    <select>
-                        <option value="SOCKS5" selected>SOCKS5</option>
-                        <option value="PROXY">PROXY</option>
-                    </select>
-                    <span>
-                        <input class="input-slot" type="text" value="127.0.0.1" name="server"></input>:<input class="input-slot" value="10086" name="port"></input>
-                    </span>
-                    <text class="add clickable">+</text>
-                    <text class="remove clickable">-</text>
+            <div id="navigate" class="container">
+                <div class="inline">
+                    <text id="navigate-config" class="inline tab tab-active clickable">config</text>
+                </div>
+                <div class="inline">
+                    <text id="navigate-sites" class="inline tab clickable">sites</text>
                 </div>
             </div>
-            <div class="container">
-                <text id="save" class="clickable button">save</text>
+            <div id="config-tab" class='tab-content container'>
+                <div id="config" class="container">
+                    <div class="template row">
+                        <select>
+                            <option value="SOCKS5" selected>SOCKS5</option>
+                            <option value="PROXY">PROXY</option>
+                        </select>
+                        <span>
+                            <input class="input-slot" type="text" value="127.0.0.1" name="server"></input>:<input class="input-slot" value="10086" name="port"></input>
+                        </span>
+                        <text class="add clickable">+</text>
+                        <text class="remove clickable">-</text>
+                    </div>
+                </div>
+                <div class="container">
+                    <text id="save" class="clickable button">save</text>
+                </div>
+            </div>
+            <div id="sites-tab" class="tab-content container hidden">
+                <div class="hosts container">
+                    <div class="template">
+                        <input class="input-slot" readonly value="*.google.com"></input>
+                        <text class="remove clickable">-</text>
+                    </div>
+                </div>
+                <div class="container">
+                    <text id="sync-hosts" class="clickable button">sync</text>
+                </div>
             </div>
         </div>
     </body>

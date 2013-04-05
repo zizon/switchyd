@@ -1,96 +1,123 @@
 document.addEventListener("DOMContentLoaded",function(){
-        // attach click events
-        var add = document.querySelectorAll(".add");
-        var add_function = function(event){
-            var element = document.querySelector("#config")
-                    .appendChild(event.target.parentNode.cloneNode(true));
-            element.querySelector(".add").addEventListener("click",add_function);
-            element.querySelector(".remove").addEventListener("click",remove_function);
+    'use strict'
+    var foreach_dom = function(expr,callback){
+        var candidates = document.querySelectorAll(expr);
+        for( var i=0; i<candidates.length; i++ ){
+            callback(candidates[i]);
         }
-        for( var i=0; i<add.length; i++){
-            add[i].addEventListener("click",add_function);
-        }
-        
-        var remove = document.querySelectorAll(".remove");
-        var remove_function = function(event){
-            if(document.querySelectorAll(".remove").length > 1){
-                event.target.parentNode.remove();
-            }
-        }
-        for( var i=0; i<remove.length; i++){
-            remove[i].addEventListener("click",remove_function);
-        }
-        
-        // restore config
-        chrome.runtime.getBackgroundPage(function(app){
-                //get configs
-                var servers = app.config["servers"].split(";").reduce(function( previous, current, index, array ){
-                        if( (current = current.trim()).length <= 0 ){
-                            return previous;
-                        }
-
-                        var tuples = current.split(" ").reduce(function( previous, current, index, array ){
-                                if( (current = current.trim()).length > 0 ){
-                                    previous.push(current);
-                                }
-                                
-                                return previous;
-                            },
-                            []
-                        );
-                        
-                        var server = tuples[1].split(":");
-                        previous.push({
-                            "protocol":tuples[0],
-                            "server":server[0],
-                            "port":server[1]
-                        });
-                        
-                        return previous;
-                    },
-                    []
-                );
-                
-                {
-                    // need only one, delete other
-                    var rows = document.querySelectorAll("div.row");
-                    for( var i=1; i<rows.length; i++ ){
-                        rows[i].remove();
-                    }
-                }
-                
-                var row = document.querySelector("div.row");
-                servers.map(function(proxy){
-                    var new_row = row.cloneNode(true);
-                    new_row.querySelector("select").value = proxy["protocol"];
-                    new_row.querySelector("input[name='server']").value = proxy["server"];
-                    new_row.querySelector("input[name='port']").value =proxy["port"];
-                    
-                    var element = document.querySelector("#config").appendChild(new_row);
-                    element.querySelector(".add").addEventListener("click",add_function);
-                    element.querySelector(".remove").addEventListener("click",remove_function);
-                });
-                
-                if( document.querySelectorAll("div.row").length > 1){
-                    row.remove();
-                }
-        })
-           
-        // attach save
-        document.querySelector("#save").addEventListener("mouseover",function(event){
+    }
+    
+    var button_effect = function(dom){
+        dom.addEventListener("mouseover",function(event){
             event.target.style.borderColor = "hsl(222,38%,61%)";
         });
         
-        document.querySelector("#save").addEventListener("mouseout",function(event){
+        dom.addEventListener("mouseout",function(event){
             event.target.style.borderColor = ""
         });
         
-        document.querySelector("#save").addEventListener("click",function(event){
+        dom.addEventListener("click",function(event){
+            event.target.style.borderColor = "hsl(222,84%,61%)";
+            event.target.style.borderWidth = "1px";
+            
+            // delay effect clear
+            window.setTimeout(function(){
+                    event.target.style.borderColor = "hsl(222,38%,61%)";
+                    event.target.style.borderWidth = "";
+                },
+                300
+            );
+        });
+    }
+    
+    var notify = (function(){
+        var message = document.querySelector("#message");
+        return function(content){
+            message.textContent = content;
+            message.style.display="block";
+
+            window.setTimeout(function(){
+                    message.style.display=""
+                },
+                2000
+            );
+        }
+    })();
+    
+    // restore config
+    chrome.runtime.getBackgroundPage(function(app){
+            var row_template = document.querySelector("div#config div.template");
+            var root = document.querySelector("#config");
+            
+            //get configs
+            app.config["servers"].split(";").reduce(function( previous, current, index, array ){
+                    if( (current = current.trim()).length <= 0 ){
+                        return previous;
+                    }
+
+                    var tuples = current.split(" ").reduce(function( previous, current, index, array ){
+                            if( (current = current.trim()).length > 0 ){
+                                previous.push(current);
+                            }
+                            
+                            return previous;
+                        },
+                        []
+                    );
+                    
+                    var server = tuples[1].split(":");
+                    previous.push({
+                        "protocol":tuples[0],
+                        "server":server[0],
+                        "port":server[1]
+                    });
+                    
+                    return previous;
+                },
+                []
+            ).map(function(proxy){
+                var new_row = row_template.cloneNode(true);
+
+                new_row.querySelector("select").value = proxy["protocol"];
+                new_row.querySelector("input[name='server']").value = proxy["server"];
+                new_row.querySelector("input[name='port']").value =proxy["port"];
+                
+                new_row.classList.remove("template");
+                
+                var remove = function(event){
+                    if(document.querySelectorAll(".remove").length > 1){
+                        event.target.parentNode.remove();
+                    }
+                }
+                
+                var add = function(event){
+                    var row = document.querySelector("#config").appendChild(event.target.parentNode.cloneNode(true));
+                    row.querySelector(".add").addEventListener("click",add);
+                    row.querySelector(".remove").addEventListener("click",remove);
+                }
+                
+                var element = root.appendChild(new_row);
+                element.querySelector(".add").addEventListener("click",add);
+                element.querySelector(".remove").addEventListener("click",remove);
+            });
+    });
+    
+    // attach save
+    {
+        var save = document.querySelector("#save");
+        button_effect(save);
+        
+        save.addEventListener("click",function(event){
             // build server list
             var servers=[]
             var rows = document.querySelector("#config").children;
             for( var i=0; i<rows.length; i++ ){
                 var row = rows[i];
+                // ignore template
+                if(row.classList.contains("template")){
+                    continue;
+                }
+                
                 servers.push(row.querySelector("select").value 
                     + " " + row.querySelector("input[name='server']").value 
                     + ":" + row.querySelector("input[name='port']").value
@@ -103,25 +130,102 @@ document.addEventListener("DOMContentLoaded",function(){
                 app.hints.codegen();
             })
             
-            // start button effect
-            event.target.style.borderColor = "hsl(222,84%,61%)";
-            event.target.style.borderWidth = "1px";
-            
-            var message = document.querySelector("#message")
-            message.style.display="block";
-            
-            // delay effect clear
-            window.setTimeout(function(){
-                    event.target.style.borderColor = "hsl(222,38%,61%)";
-                    event.target.style.borderWidth = "";
-                },
-                300
-            );
-            
-            window.setTimeout(function(){
-                    message.style.display=""
-                },
-                2000
-            );
+            notify("SETTING APPLY");
         });
-    });
+    }
+    
+    // prepare tab
+    {
+        var bind_tab_effect = function(tab,content){
+            tab.addEventListener("mouseover",function(event){
+                if(! event.target.classList.contains("tab-active")){
+                    event.target.classList.add("tab-semi-active");
+                }
+            });
+            
+            tab.addEventListener("mouseout",function(event){
+                if(! event.target.classList.contains("tab-active")){
+                    event.target.classList.remove("tab-semi-active");
+                }
+            });
+            
+            tab.addEventListener("click",function(event){
+                event.target.classList.remove("tab-semi-active");
+                
+                // clear old
+                foreach_dom("#navigate .tab-active",function(dom){
+                    dom.classList.remove("tab-active");
+                });
+       
+                event.target.classList.add("tab-active");
+            });
+            
+            tab.addEventListener("click",function(event){
+                foreach_dom(".tab-content",function(dom){
+                    dom.classList.add("hidden");
+                });
+                
+                content.classList.remove("hidden");
+            });
+        };
+        
+        bind_tab_effect(
+            document.querySelector("#navigate-config"),
+            document.querySelector("#config-tab")
+        );
+      
+        bind_tab_effect(
+            document.querySelector("#navigate-sites"),
+            document.querySelector("#sites-tab")
+        );
+    }
+    
+    // build sites list
+    {
+        var sync_hosts = document.querySelector("#sync-hosts");
+        button_effect(sync_hosts);
+        sync_hosts.addEventListener("click",function(event){
+             chrome.runtime.getBackgroundPage(function(app){
+                var hosts = {};
+                foreach_dom(".host",function(dom){
+                    var host = dom.querySelector("input.input-slot").name;
+                    if( host in app.hints.marks ){
+                        hosts[host] = app.hints.marks[host];
+                    }
+                });
+                
+                app.hints.marks = hosts;
+                app.hints.codegen();
+                notify("UPDATE PROXY DONE");
+             });
+        });
+        
+        document.querySelector("#navigate-sites").addEventListener("click",function(event){
+            // clear old
+            foreach_dom(".host",function(dom){
+                dom.remove();
+            });
+        
+            // build new
+            chrome.runtime.getBackgroundPage(function(app){
+                var hosts = app.hints.marks;
+                
+                var host_template = document.querySelector("div#sites-tab div.template");
+                var root = document.querySelector("div#sites-tab");
+                
+                for( var host in app.hints.marks ){
+                        var row = host_template.cloneNode(true);
+                        row.querySelector(".remove").addEventListener("click",function(event){
+                            event.target.parentNode.remove();
+                        });
+                        
+                        row.querySelector("input.input-slot").value = host + " ( ~" + app.hints.marks[host] + " times ) ";
+                        row.querySelector("input.input-slot").name = host
+                        row.classList.remove("template");
+                        row.classList.add("host");
+                        root.appendChild(row);
+                }
+            });
+        });
+    }
+});
