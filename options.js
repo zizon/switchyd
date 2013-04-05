@@ -208,11 +208,13 @@ document.addEventListener("DOMContentLoaded",function(){
         
             // build new
             chrome.runtime.getBackgroundPage(function(app){
-                var hosts = app.hints.marks;
+                // a chance to compact
+                app.hints.compact();
                 
                 var host_template = document.querySelector("div#sites-tab div.template");
                 var root = document.querySelector("div#sites-tab");
                 
+                var rows = [];
                 for( var host in app.hints.marks ){
                         var row = host_template.cloneNode(true);
                         row.querySelector(".remove").addEventListener("click",function(event){
@@ -223,8 +225,22 @@ document.addEventListener("DOMContentLoaded",function(){
                         row.querySelector("input.input-slot").name = host
                         row.classList.remove("template");
                         row.classList.add("host");
-                        root.appendChild(row);
+                        
+                        rows.push({
+                            "count":app.hints.marks[host],
+                            "row":row
+                        });
                 }
+                
+                // sort for easier access
+                rows.sort(function(left,right){
+                    return left.count - right.count;
+                });
+                
+                // append
+                rows.map(function(row){
+                    root.appendChild(row.row);
+                });
             });
         });
     }
