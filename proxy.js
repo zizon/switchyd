@@ -34,13 +34,52 @@ var config = {
 }
 
 var engine = {
+    "shuffle" : function(more){
+        switch(more.length){
+            case 0:
+            case 1:
+                return [more];
+            case 2:return [
+                    [more[0],more[1]],
+                    [more[1],more[0]]
+            ];
+        }
+    
+        var single = more[0];
+        var shuffled = this.shuffle(more.slice(1));
+        var result = [];
+        
+        for( var selected=0; selected < shuffled.length; selected++ ){
+            // loop each shuffled
+            var current = shuffled[selected];
+            
+            for( var insert_point=0; insert_point < current.length; insert_point++ ){
+                // loop and copy single to current
+                var temp = [];
+                for( var index=0 ;index < current.length; index++ ){
+                    if( index == insert_point ){
+                        temp.push(single);
+                    }
+                    temp.push(current[index]);
+                }
+                
+                result.push(temp);
+            }
+            
+            current.push(single);
+            result.push(current);
+        }
+        
+        return result;
+    },
+    
     "gen":function(hints){
         // build lookup
         var lookup = hints.genLookup();
         var marks = hints.marks;
         
         // backward compatible
-        config["servers"] = config["servers"].split(";").map(function(i){
+        var candidates = config["servers"].split(";").map(function(i){
             i=i.trim()
             if(i.indexOf("HTTPS") == 0){
                 return "PROXY " + i.substr(5);
@@ -49,24 +88,31 @@ var engine = {
             }else{
                 return i;
             }
-        }).join(";");
+        }).filter(function(i){
+            return i.length > 0;
+        });
+        config["servers"] = candidates.join(";");
         
-        var servers = config["servers"] + ";DIRECT;";
+        // for load balance purpose
+        var servers = this.shuffle(candidates).map(function(i){
+            return i.join(";") + ";DIRECT;";
+        });
         
         var matchFuzzy = hints.match;
         
         //gen template
         var template = function(url,host){
+            var server = servers[Date.now()%servers.length];
             if( host in marks ){
-                return servers;
+                return server;
             }
             
-            return matchFuzzy(host,lookup,false)["fuzzy"] ? servers : "DIRECT;";
+            return matchFuzzy(host,lookup,false)["fuzzy"] ? server : "DIRECT;";
         }
         
         return "var lookup = " + JSON.stringify(lookup) + ";\n"
             +   "var marks = " + JSON.stringify(marks) + ";\n"
-            +   "var servers = '" + servers + "'\n"
+            +   "var servers = " + JSON.stringify(servers) + ";\n"
             +   "var matchFuzzy = " + matchFuzzy.toString() + "\n"
             +   "var FindProxyForURL = " + template.toString(); 
     }
