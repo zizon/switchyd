@@ -371,20 +371,6 @@ var hints ={
     }
 }
 
-function syncFromCloud(){
-    console.log("sync from cloud");
-    chrome.storage.sync.get(null,function(items){
-        var marks = hints.marks;
-        for(var key in items){
-            marks[key] = items[key];
-        }
-        
-        if( hints.compact() ){
-            hints.codegen();
-        }
-    });
-}
-
 function resoreHints(){
     console.log("restore hints");
     var cache = localStorage.getItem("hints.marks");
@@ -454,12 +440,6 @@ function handInRequest(){
 
 function schedule(){
     console.log("schedule");
-    chrome.alarms.create(
-        "sync-to-cloud",
-        {
-            "periodInMinutes":30
-        }
-    );
     
     chrome.alarms.create(
         "sweep-hints-marks",
@@ -474,13 +454,6 @@ function schedule(){
             case "codegen":
                 hints.codegen();
                 break;
-            case "sync-to-cloud":
-                chrome.storage.sync.clear(function(){
-                    chrome.storage.sync.set(hints["marks"],function(){
-                        console.log("sync to cloud");
-                    });
-                });
-                break
             case "sweep-hints-marks":
                 // clear candidate
                 hints.candidate = {};
@@ -516,7 +489,6 @@ function schedule(){
 
 function handIn(){
     restoreProxyConfig();
-    syncFromCloud();
     resoreHints();
     handInRequest();
     schedule();
