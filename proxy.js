@@ -33,6 +33,22 @@ var config = {
     "servers":"SOCKS5 127.0.0.1:10086;"
 }
 
+var logger = {
+	"enable":false,
+	
+	"log":function(msg){
+		if( this.enable ){
+			console.log(msg);
+		}
+	},
+	
+	"error":function(msg){
+		if( this.enable ){
+			console.error(msg);
+		}
+	}
+}
+
 var engine = {
     "shuffle" : function(more){
         switch(more.length){
@@ -337,7 +353,7 @@ var hints ={
             },
             
             function(){
-                console.log("setting apply");
+                logger.log("setting apply");
             }
         );
     },
@@ -348,7 +364,7 @@ var hints ={
             if( host in this.marks ){
                 if( --this.marks[host] <= 0 ){
                     // proxy fail much,remove from proxy
-                    console.log("drop proxy:" + host);
+                    logger.log("drop proxy:" + host);
                     delete this.marks[host];
                     this.codegen();
                 }
@@ -362,7 +378,7 @@ var hints ={
     "mayFail":function(host){
         if( host in this.candidate ){
             if( ++this.candidate[host] > 3 ){
-                console.log("much time out/abort promote to marks:" + host);
+                logger.log("much time out/abort promote to marks:" + host);
                 this.markFail(host);
             }
         }else{
@@ -372,7 +388,7 @@ var hints ={
 }
 
 function resoreHints(){
-    console.log("restore hints");
+    logger.log("restore hints");
     var cache = localStorage.getItem("hints.marks");
     if( cache == null ){
         return;
@@ -393,15 +409,15 @@ function extractHost(url){
 }
 
 function handInRequest(){
-    console.log("handin request");
+    logger.log("handin request");
     
     chrome.proxy.onProxyError.addListener(function(details){
-        console.error("proxy error:" + details);
+        logger.error("proxy error:" + details);
     });
     
     chrome.webRequest.onErrorOccurred.addListener(
         function(details){
-            console.error(details);
+            logger.error(details);
             
             // inspect potential reset request
             switch(details.error){
@@ -439,7 +455,7 @@ function handInRequest(){
 }
 
 function schedule(){
-    console.log("schedule");
+    logger.log("schedule");
     
     chrome.alarms.create(
         "sweep-hints-marks",
@@ -449,7 +465,7 @@ function schedule(){
     );
     
     chrome.alarms.onAlarm.addListener(function( alarm ){
-        console.log("fire alarm:" + alarm.name);
+        logger.log("fire alarm:" + alarm.name);
         switch(alarm.name){
             case "codegen":
                 hints.codegen();
@@ -480,7 +496,7 @@ function schedule(){
                 
                 // clear
                 hints.complete = {};
-                console.log("sync-local-cache");
+                logger.log("sync-local-cache");
                 localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
                 break;
         }
