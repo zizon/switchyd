@@ -102,12 +102,11 @@ var engine = {
         
         //gen template
         var template = function(url,host){
-            var server = servers[Date.now()%servers.length];
             if( host in marks ){
-                return server;
+                return servers[Date.now()%servers.length];
             }
             
-            return matchFuzzy(host,lookup,false)["fuzzy"] ? server : "DIRECT;";
+            return matchFuzzy(host,lookup,false)["fuzzy"] ? servers[Date.now()%servers.length] : "DIRECT;";
         }
         
         return "var lookup = " + JSON.stringify(lookup) + ";\n"
@@ -451,9 +450,6 @@ function schedule(){
     chrome.alarms.onAlarm.addListener(function( alarm ){
         console.log("fire alarm:" + alarm.name);
         switch(alarm.name){
-            case "codegen":
-                hints.codegen();
-                break;
             case "sweep-hints-marks":
                 // clear candidate
                 hints.candidate = {};
