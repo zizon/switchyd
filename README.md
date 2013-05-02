@@ -28,8 +28,7 @@ the extension require permissions of:
 
 webRequest and http/https are required for extension to inspect both http and https request.  
 proxy ,of course, allows the extension to access chrome the proxy functionality. 
-alarms are recommended replacement of time schedule API in chrome. in this case,sync list & optimize list work  
-are schedule using this API.
+alarms are recommended replacement of time schedule API in chrome. in this case,sync list & optimize list work are schedule using this API.
 
 License
 ---
