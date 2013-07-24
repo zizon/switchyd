@@ -5,16 +5,16 @@ All rights reserved.
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 1. Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
+notice, this list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
 3. All advertising materials mentioning features or use of this software
-   must display the following acknowledgement:
-   This product includes software developed by the <organization>.
+must display the following acknowledgement:
+This product includes software developed by the <organization>.
 4. Neither the name of the <organization> nor the
-   names of its contributors may be used to endorse or promote products
-   derived from this software without specific prior written permission.
+names of its contributors may be used to endorse or promote products
+derived from this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY <COPYRIGHT HOLDER> ''AS IS'' AND ANY
 EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -40,69 +40,69 @@ var engine = {
             case 1:
                 return [more];
             case 2:return [
-                    [more[0],more[1]],
-                    [more[1],more[0]]
+                [more[0],more[1]],
+                [more[1],more[0]]
             ];
         }
-    
-		return this.shuffle(more.slice(1)).reduce(
-			function(shuffled,unit){
-				// for each shuffled unit
-				unit.forEach(function(item,index){
-					// patch single to current unit at position index
-					shuffled.push([].concat(unit.slice(0,index),more[0],unit.slice(index)));
-				});
-				
-				// create new instead of reuse unit.
-				// aim to cut reference to local reference.
-				shuffled.push([].concat(unit,more[0]));
-				return shuffled;
-			},
-			[]
-		);
+
+        return this.shuffle(more.slice(1)).reduce(
+            function(shuffled,unit){
+                // for each shuffled unit
+                unit.forEach(function(item,index){
+                    // patch single to current unit at position index
+                    shuffled.push([].concat(unit.slice(0,index),more[0],unit.slice(index)));
+                });
+
+                // create new instead of reuse unit.
+                // aim to cut reference to local reference.
+                shuffled.push([].concat(unit,more[0]));
+                return shuffled;
+            },
+            []
+        );
     },
-    
+
     "gen":function(hints){
         // build lookup
         var lookup = hints.genLookup();
         var marks = hints.marks;
-        
+
         // backward compatible
-		var candidates = config["servers"].split(";").reduce(
-			function(concated,item){
-				item = item.trim();
-				if(item.indexOf("HTTPS") == 0){
-					concated.push("PROXY " + item.substr(5));
-				}else if(item.indexOf("HTTP") == 0){
-					concated.push("PROXY " + item.substr(4));
-				}else if(item.length > 0){
-					concated.push(item);
-				}
-				
-				return concated;
-			},
-			[]
-		);
-		config["servers"] = candidates.join(";");
-        
+        var candidates = config["servers"].split(";").reduce(
+            function(concated,item){
+                item = item.trim();
+                if(item.indexOf("HTTPS") == 0){
+                    concated.push("PROXY " + item.substr(5));
+                }else if(item.indexOf("HTTP") == 0){
+                    concated.push("PROXY " + item.substr(4));
+                }else if(item.length > 0){
+                    concated.push(item);
+                }
+
+                return concated;
+            },
+            []
+        );
+        config["servers"] = candidates.join(";");
+
         // shuffle servers,aim to randomize proxy load
         var servers = this.shuffle(candidates).map(function(i){
             return i.join(";") + ";DIRECT;";
         });
-        
-		// dereference.
-		// Note: hints.match should not contain any 'this' use.
+
+        // dereference.
+        // Note: hints.match should not contain any 'this' use.
         var matchFuzzy = hints.match;
-        
+
         //gen template
         var template = function(url,host){
             if( host in marks ){
                 return servers[Date.now()%servers.length];
             }
-            
+
             return matchFuzzy(host,lookup,false)["fuzzy"] ? servers[Date.now()%servers.length] : "DIRECT;";
         }
-        
+
         return "var lookup = " + JSON.stringify(lookup) + ";\n"
             +   "var marks = " + JSON.stringify(marks) + ";\n"
             +   "var servers = " + JSON.stringify(servers) + ";\n"
@@ -124,11 +124,11 @@ function restoreProxyConfig(){
 
 var hints ={
     "marks":{},
-    
+
     "complete":{},
-    
+
     "candidate":{},
-    
+
     "genLookup":function(){
         var lookup = {};
         var marks = this.marks;
@@ -137,61 +137,62 @@ var hints ={
                 delete marks[key];
                 continue;
             }
-            
-			// gen lookup table in reverse/postfix manner.
-			// for example, 'www.google.com' will be transform to 
-			//	{
-			//		"com":{
-			//			"google":{
-			//				"www":{}
-			//			}
-			//		}
-			//	}
-            key.split(".").reduceRight(function( previous, current, index, array ){
-                        return current in previous ? previous[current] : previous[current] = {};
+
+            // gen lookup table in reverse/postfix manner.
+            // for example, 'www.google.com' will be transform to 
+            //	{
+            //		"com":{
+            //			"google":{
+            //				"www":{}
+            //			}
+            //		}
+            //	}
+            key.split(".").reduceRight(
+                function( previous, current, index, array ){
+                    return current in previous ? previous[current] : previous[current] = {};
                 },
                 lookup
             );
         }
-        
+
         return lookup;
     },
-      
+
     "match":function(host,lookup,create_when_miss){
         return host.split(".").reduceRight(
-			function( previous, current, index, array ){
+            function( previous, current, index, array ){
                 // directive ignore
                 if( previous["ignore"] ){
                     return previous;
                 }
-                    
+
                 var ctx_lookup = previous["lookup"];
-                    
+
                 // see if current context has fuzzy
                 if( "*" in ctx_lookup || current == "*" ){
                     // mark it
                     previous["fuzzy"] = true;
-					
-					// set up ignore flag
-					previous["ignore"] = true;
-                    
+
+                    // set up ignore flag
+                    previous["ignore"] = true;
+
                     // modiry current representation.
-					// it is a fuzzy match
-					previous["context"].push("*");
+                    // it is a fuzzy match
+                    previous["context"].push("*");
                 }else if( current in ctx_lookup ){
                     // match , drill down
                     previous["lookup"] = ctx_lookup[current];
                     previous["context"].push(current);
                 }else if( create_when_miss ){
-					// not match,and directive to create new
+                    // not match,and directive to create new
                     previous["lookup"] = ctx_lookup[current] = {};
                     previous["context"].push(current);
                 }else{
-					// not match,and directive *NOT* to create new
+                    // not match,and directive *NOT* to create new
                     previous["ignore"] = true;
                 }
-				
-				return previous;
+
+                return previous;
             },
             {
                 "lookup":lookup,
@@ -201,106 +202,107 @@ var hints ={
             }
         );
     },
-    
+
     "compact":function(){
         // easy job
         if( "*" in this.marks ){
             this.marks = {"*":2};
             return true;
         }
-        
+
         // lookup table
         var lookup = this.genLookup();
         var gen = false;
-		
-		var merge = function(fuzzy_key,siblings,parent){
-			var half_merge = function(siblings,parent){
-				var counter = 0;
-				for( var child in siblings ){
-					parent.push(child);
-					counter += half_merge(siblings[child],parent);
-					parent.pop();
-					delete siblings[child];
-				}
-				
-				// may reach leaf
-				if( counter == 0 ){
-					var key = parent.reverse().join(".");
-					if( key in hints.marks ){
-						counter += hints.marks[key];
-						delete hints.marks[key];
-					}
-					parent.reverse();
-				}
-	
-				return counter;
-			}
-			
-			// counting
-			var old_counter = fuzzy_key in hints.marks ?  hints.marks[fuzzy_key] : 0;
-			var counter = half_merge(siblings,parent);
-			
-			// update track context
-			siblings["*"] = {};
-			hints.marks[fuzzy_key] = counter;
-			
-			return old_counter != counter;
-		}
-		
-		for( var key in this.marks ){
-			var match = this.match(key,lookup,false);
-			
-			// parent
-			var parent = key.split(".").reverse();
-			parent.pop();
-			
-			// sibling lookup
-			var siblings = parent.reduce(function( parent, child, index, array ){
+
+        var merge = function(fuzzy_key,siblings,parent){
+            var half_merge = function(siblings,parent){
+                var counter = 0;
+                for( var child in siblings ){
+                    parent.push(child);
+                    counter += half_merge(siblings[child],parent);
+                    parent.pop();
+                    delete siblings[child];
+                }
+
+                // may reach leaf
+                if( counter == 0 ){
+                    var key = parent.reverse().join(".");
+                    if( key in hints.marks ){
+                        counter += hints.marks[key];
+                        delete hints.marks[key];
+                    }
+                    parent.reverse();
+                }
+
+                return counter;
+            }
+
+            // counting
+            var old_counter = fuzzy_key in hints.marks ?  hints.marks[fuzzy_key] : 0;
+            var counter = half_merge(siblings,parent);
+
+            // update track context
+            siblings["*"] = {};
+            hints.marks[fuzzy_key] = counter;
+
+            return old_counter != counter;
+        }
+
+        for( var key in this.marks ){
+            var match = this.match(key,lookup,false);
+
+            // parent
+            var parent = key.split(".").reverse();
+            parent.pop();
+
+            // sibling lookup
+            var siblings = parent.reduce(
+                function( parent, child, index, array ){
                     return parent[child];
                 },
                 lookup
             );
-			
-			if( match["fuzzy"] ){				
-				// merge,directive code generation
-				gen = merge(match["context"].reverse().join("."),siblings,parent) || gen;
-				continue;
-			}
-			
-			// no fuzzy match
-			var mergable = true;
-			for( var sibling in siblings ){
-				// fuzzy is ok for grandchild
-				if( "*" in siblings[sibling] ){
-					// mergable
-					continue;
-				}
-				
-				for( var child in siblings[sibling] ){
-					mergable = false;
-					break;
-				}
-				
-				// quick quit
-				if(!mergable){
-					break;
-				}
-			}
-			
-			if( mergable ){
-				if( parent > 2){
-					gen = true;
-					parent.push("*");
-					var fuzzy_key = parent.reverse().join(".");
-					parent.reverse().pop();
-					merge(fuzzy_key,siblings,parent);
-				}
-			}
-		}
-		
+
+            if( match["fuzzy"] ){				
+                // merge,directive code generation
+                gen = merge(match["context"].reverse().join("."),siblings,parent) || gen;
+                continue;
+            }
+
+            // no fuzzy match
+            var mergable = true;
+            for( var sibling in siblings ){
+                // fuzzy is ok for grandchild
+                if( "*" in siblings[sibling] ){
+                    // mergable
+                    continue;
+                }
+
+                for( var child in siblings[sibling] ){
+                    mergable = false;
+                    break;
+                }
+
+                // quick quit
+                if(!mergable){
+                    break;
+                }
+            }
+
+            if( mergable ){
+                if( parent > 2){
+                    gen = true;
+                    parent.push("*");
+                    var fuzzy_key = parent.reverse().join(".");
+                    parent.reverse().pop();
+                    merge(fuzzy_key,siblings,parent);
+                }
+            }
+        }
+
         return gen;
     },
-    
+
     "markOK":function(host){
         if( host in this.complete ){
             if( this.complete[host] < Number.MAX_VALUE ){
@@ -310,7 +312,7 @@ var hints ={
             this.complete[host] = 1;
         }
     },
-    
+
     "codegen":function(){
         chrome.proxy.settings.set(
             {
@@ -322,30 +324,30 @@ var hints ={
                     }
                 }
             },
-            
+
             function(){
                 console.log("setting apply");
             }
         );
     },
-    
+
     "markFail":function(host){
-            // if host is in proxy.
-            // update marks
-            if( host in this.marks ){
-                if( --this.marks[host] <= 0 ){
-                    // proxy fail much,remove from proxy
-                    console.log("drop proxy:" + host);
-                    delete this.marks[host];
-                    this.codegen();
-                }
-            }else{
-                // not in proxy yet,add it
-                this.marks[host] = 2;
+        // if host is in proxy.
+        // update marks
+        if( host in this.marks ){
+            if( --this.marks[host] <= 0 ){
+                // proxy fail much,remove from proxy
+                console.log("drop proxy:" + host);
+                delete this.marks[host];
                 this.codegen();
             }
+        }else{
+            // not in proxy yet,add it
+            this.marks[host] = 2;
+            this.codegen();
+        }
     },
-    
+
     "mayFail":function(host){
         if( host in this.candidate ){
             if( ++this.candidate[host] > 3 ){
@@ -364,12 +366,12 @@ function resoreHints(){
     if( cache == null ){
         return;
     }
-    
+
     cache = JSON.parse(cache);
     for( var key in cache ){
         hints.marks[key] = cache[key];
     }
-    
+
     hints.compact();
     hints.codegen();
 }
@@ -381,19 +383,19 @@ function extractHost(url){
 
 function handInRequest(){
     console.log("handin request");
-    
+
     chrome.proxy.onProxyError.addListener(function(details){
         console.error("proxy error:" + details);
     });
-    
+
     chrome.webRequest.onErrorOccurred.addListener(
         function(details){
             console.error(details);
-            
+
             // inspect potential reset request
             switch(details.error){
                 case "net::ERR_CONNECTION_RESET":
-				case "net::ERR_CONNECTION_TIMED_OUT":
+                case "net::ERR_CONNECTION_TIMED_OUT":
                     hints.markFail(extractHost(details.url));
                     break;
                 case "net::ERR_CONNECTION_ABORTED":
@@ -405,14 +407,14 @@ function handInRequest(){
             "urls":["<all_urls>"]
         }
     );
-    
+
     chrome.webRequest.onCompleted.addListener(
         function(details){
             // ignore cache
             if(details.fromCache){
                 return;
             }
-            
+
             // mark host ok
             hints.markOK(extractHost(details.url));
         },
@@ -425,46 +427,46 @@ function handInRequest(){
 
 function schedule(){
     console.log("schedule");
-    
+
     chrome.alarms.create(
         "sweep-hints-marks",
         {
             "periodInMinutes":5
         }
     );
-    
+
     chrome.alarms.onAlarm.addListener(function( alarm ){
         console.log("fire alarm:" + alarm.name);
         switch(alarm.name){
             case "sweep-hints-marks":
-                // clear candidate
-                hints.candidate = {};
-                
-                // compact first,make it shorter
-                if( hints.compact() ){
-                    hints.codegen();
+            // clear candidate
+            hints.candidate = {};
+
+            // compact first,make it shorter
+            if( hints.compact() ){
+                hints.codegen();
+            }
+
+            // loop hints.complete list,
+            // update counter in marks.
+            var lookup = hints.genLookup();
+            for( var key in hints.complete ){
+                if( key in hints.marks ){
+                    hints.marks[key] += hints.complete[key];
+                    continue;
                 }
-                
-                // loop hints.complete list,
-                // update counter in marks.
-                var lookup = hints.genLookup();
-                for( var key in hints.complete ){
-                    if( key in hints.marks ){
-                        hints.marks[key] += hints.complete[key];
-                        continue;
-                    }
-                    
-                    var match = hints.match(key,lookup,false);
-                    if( match["fuzzy"] ){
-                        hints.marks[match["context"].reverse().join(".")] += hints.complete[key];
-                    }
+
+                var match = hints.match(key,lookup,false);
+                if( match["fuzzy"] ){
+                    hints.marks[match["context"].reverse().join(".")] += hints.complete[key];
                 }
-                
-                // clear
-                hints.complete = {};
-                console.log("sync-local-cache");
-                localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
-                break;
+            }
+
+            // clear
+            hints.complete = {};
+            console.log("sync-local-cache");
+            localStorage.setItem("hints.marks",JSON.stringify(hints.marks));
+            break;
         }
     });
 }
