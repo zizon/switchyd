@@ -90,7 +90,8 @@ var engine = {
             return i.join(";") + ";DIRECT;";
         });
         
-		// dereference
+		// dereference.
+		// Note: hints.match should not contain any 'this' use.
         var matchFuzzy = hints.match;
         
         //gen template
@@ -137,6 +138,15 @@ var hints ={
                 continue;
             }
             
+			// gen lookup table in reverse/postfix manner.
+			// for example, 'www.google.com' will be transform to 
+			//	{
+			//		"com":{
+			//			"google":{
+			//				"www":{}
+			//			}
+			//		}
+			//	}
             key.split(".").reduceRight(function( previous, current, index, array ){
                         return current in previous ? previous[current] : previous[current] = {};
                 },
@@ -148,45 +158,45 @@ var hints ={
     },
       
     "match":function(host,lookup,create_when_miss){
-        return host.split(".").reduceRight(function( previous, current, index, array ){
-                // if already meet a fuzzy,ignore
-                if( previous["fuzzy"] || previous["giveup"] ){
+        return host.split(".").reduceRight(
+			function( previous, current, index, array ){
+                // directive ignore
+                if( previous["ignore"] ){
                     return previous;
                 }
                     
-                var lookup = previous["lookup"];
+                var ctx_lookup = previous["lookup"];
                     
                 // see if current context has fuzzy
-                if( "*" in lookup || current == "*" ){
+                if( "*" in ctx_lookup || current == "*" ){
                     // mark it
                     previous["fuzzy"] = true;
+					
+					// set up ignore flag
+					previous["ignore"] = true;
                     
-                    // save match context
-                    previous["context"].push("*");
-                    return previous;
-                }
-                    
-                if( current in lookup ){
-                    // match , deep down
-                    previous["lookup"] = lookup[current];
+                    // modiry current representation.
+					// it is a fuzzy match
+					previous["context"].push("*");
+                }else if( current in ctx_lookup ){
+                    // match , drill down
+                    previous["lookup"] = ctx_lookup[current];
                     previous["context"].push(current);
-                    return previous;
-                }
-                
-                // not match,
-                if( create_when_miss ){
-                    previous["lookup"] = lookup[current] = {};
+                }else if( create_when_miss ){
+					// not match,and directive to create new
+                    previous["lookup"] = ctx_lookup[current] = {};
                     previous["context"].push(current);
-                    return previous;
                 }else{
-                    previous["giveup"] = true;
-                    return previous;
+					// not match,and directive *NOT* to create new
+                    previous["ignore"] = true;
                 }
+				
+				return previous;
             },
             {
                 "lookup":lookup,
                 "fuzzy":false,
-                "giveup":false,
+                "ignore":false,
                 "context":[]
             }
         );
@@ -199,110 +209,93 @@ var hints ={
             return true;
         }
         
-        var sum = function( counter, lookup ){
-            var leaf = true;
-            for( var key in lookup ){
-                leaf = false;
-                counter += sum(0,lookup[key]);
-            }
-            return counter;
-        }
-        
         // lookup table
         var lookup = this.genLookup();
         var gen = false;
-        for( var key in this.marks ){
-            var match = this.match(key,lookup,false);
-            
-            // match a fuzzy
-            if( match["fuzzy"] ){
-                if( key.indexOf("*") == -1 ){
-                    // not a fuzzy key.
-                    // sum child,and delete
-                    this.marks[match["context"].reverse().join(".")] += this.marks[key];
-                    delete this.marks[key];
-                    continue;
-                }
-                
-                // optimize case
-                // it is a fuzzy,but not match itself.
-                // so it must be match bu parent fuzzy and can be drop
-                var new_key = match["context"].reverse().join(".");
-                if( key != new_key ){
-                    this.marks[new_key] += this.marks[key];
-                    delete this.marks[key];
-                }
-                continue;
-            }
- 
-            // not match any fuzzy,try optimize
-            var parent = key.split(".");
-            parent.reverse();
-            parent.pop();
-            
-            var tail = parent.reduce(function( previous, current, index, array ){
-                    return previous[current];
+		
+		var merge = function(fuzzy_key,siblings,parent){
+			var half_merge = function(siblings,parent){
+				var counter = 0;
+				for( var child in siblings ){
+					parent.push(child);
+					counter += half_merge(siblings[child],parent);
+					parent.pop();
+					delete siblings[child];
+				}
+				
+				// may reach leaf
+				if( counter == 0 ){
+					var key = parent.reverse().join(".");
+					if( key in hints.marks ){
+						counter += hints.marks[key];
+						delete hints.marks[key];
+					}
+					parent.reverse();
+				}
+	
+				return counter;
+			}
+			
+			// counting
+			var old_counter = fuzzy_key in hints.marks ?  hints.marks[fuzzy_key] : 0;
+			var counter = half_merge(siblings,parent);
+			
+			// update track context
+			siblings["*"] = {};
+			hints.marks[fuzzy_key] = counter;
+			
+			return old_counter != counter;
+		}
+		
+		for( var key in this.marks ){
+			var match = this.match(key,lookup,false);
+			
+			// parent
+			var parent = key.split(".").reverse();
+			parent.pop();
+			
+			// sibling lookup
+			var siblings = parent.reduce(function( parent, child, index, array ){
+                    return parent[child];
                 },
                 lookup
             );
-            
-            var mergable = true;
-            var counter = 0;
-            var children = [];
-            for( var child in tail ){
-                // case:all children have no sub domain
-                var fuzzy = false;
-                for( var grandchild in tail[child] ){
-                    if( grandchild != "*" ){
-                        mergable = false;
-                        break;
-                    }else{
-                        // optimize case
-                        fuzzy = true;
-                    }
-                }
-                
-                if( mergable ){
-                    // child is empty or with a fuzzy
-                    // update counter
-                    var child_key;
-                    if( fuzzy ){
-                        // optimize case
-                        parent.push(child);
-                        parent.push("*");
-                        child_key = parent.reverse().join(".");
-                        parent.reverse();
-                        parent.pop();
-                        parent.pop();
-                    }else{
-                        parent.push(child);
-                        child_key = parent.reverse().join(".");
-                        parent.reverse();
-                        parent.pop();
-                    }
-                        
-                    children.push(child_key);
-                    counter += this.marks[child_key];
-                    continue;
-                }
-                
-                break;
-            }
-            
-            if( mergable ){
-                // do not merge short domains
-                if( parent.length >= 2 ){
-                    for( var child in children ){
-                        delete this.marks[child];
-                    }
-                    
-                    parent.push("*");
-                    this.marks[parent.reverse().join(".")] = counter;
-                    gen = true;
-                }
-            }
-        }
-        
+			
+			if( match["fuzzy"] ){				
+				// merge,directive code generation
+				gen = merge(match["context"].reverse().join("."),siblings,parent) || gen;
+				continue;
+			}
+			
+			// no fuzzy match
+			var mergable = true;
+			for( var sibling in siblings ){
+				// fuzzy is ok for grandchild
+				if( "*" in siblings[sibling] ){
+					// mergable
+					continue;
+				}
+				
+				for( var child in siblings[sibling] ){
+					mergable = false;
+					break;
+				}
+				
+				// quick quit
+				if(!mergable){
+					break;
+				}
+			}
+			
+			if( mergable ){
+				gen = true;
+				parent.push("*");
+				var fuzzy_key = parent.reverse().join(".");
+				parent.reverse().pop();
+				merge(fuzzy_key,siblings,parent);
+			}
+		}
+		
         return gen;
     },
     
@@ -397,8 +390,6 @@ function handInRequest(){
             
             // inspect potential reset request
             switch(details.error){
-                default:
-                    return;
                 case "net::ERR_CONNECTION_RESET":
 				case "net::ERR_CONNECTION_TIMED_OUT":
                     hints.markFail(extractHost(details.url));
