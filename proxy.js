@@ -45,32 +45,21 @@ var engine = {
             ];
         }
     
-        var single = more[0];
-        var shuffled = this.shuffle(more.slice(1));
-        var result = [];
-        
-        for( var selected=0; selected < shuffled.length; selected++ ){
-            // loop each shuffled
-            var current = shuffled[selected];
-            
-            for( var insert_point=0; insert_point < current.length; insert_point++ ){
-                // loop and copy single to current
-                var temp = [];
-                for( var index=0 ;index < current.length; index++ ){
-                    if( index == insert_point ){
-                        temp.push(single);
-                    }
-                    temp.push(current[index]);
-                }
-                
-                result.push(temp);
-            }
-            
-            current.push(single);
-            result.push(current);
-        }
-        
-        return result;
+		return this.shuffle(more.slice(1)).reduce(
+			function(shuffled,unit){
+				// for each shuffled unit
+				unit.forEach(function(item,index){
+					// patch single to current unit at position index
+					shuffled.push([].concat(unit.slice(0,index),more[0],unit.slice(index)));
+				});
+				
+				// create new instead of reuse unit.
+				// aim to cut reference to local reference.
+				shuffled.push([].concat(unit,more[0]));
+				return shuffled;
+			},
+			[]
+		);
     },
     
     "gen":function(hints){
@@ -79,25 +68,29 @@ var engine = {
         var marks = hints.marks;
         
         // backward compatible
-        var candidates = config["servers"].split(";").map(function(i){
-            i=i.trim()
-            if(i.indexOf("HTTPS") == 0){
-                return "PROXY " + i.substr(5);
-            }else if(i.indexOf("HTTP") == 0){
-                return "PROXY " + i.substr(4);
-            }else{
-                return i;
-            }
-        }).filter(function(i){
-            return i.length > 0;
-        });
-        config["servers"] = candidates.join(";");
+		var candidates = config["servers"].split(";").reduce(
+			function(concated,item){
+				item = item.trim();
+				if(item.indexOf("HTTPS") == 0){
+					concated.push("PROXY " + item.substr(5));
+				}else if(item.indexOf("HTTP") == 0){
+					concated.push("PROXY " + item.substr(4));
+				}else if(item.length > 0){
+					concated.push(item);
+				}
+				
+				return concated;
+			},
+			[]
+		);
+		config["servers"] = candidates.join(";");
         
-        // for load balance purpose
+        // shuffle servers,aim to randomize proxy load
         var servers = this.shuffle(candidates).map(function(i){
             return i.join(";") + ";DIRECT;";
         });
         
+		// dereference
         var matchFuzzy = hints.match;
         
         //gen template
@@ -112,8 +105,8 @@ var engine = {
         return "var lookup = " + JSON.stringify(lookup) + ";\n"
             +   "var marks = " + JSON.stringify(marks) + ";\n"
             +   "var servers = " + JSON.stringify(servers) + ";\n"
-            +   "var matchFuzzy = " + matchFuzzy.toString() + "\n"
-            +   "var FindProxyForURL = " + template.toString(); 
+            +   "var matchFuzzy = " + matchFuzzy.toString() + ";\n"
+            +   "var FindProxyForURL = " + template.toString() + ";"; 
     }
 }
 
