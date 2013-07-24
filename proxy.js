@@ -288,11 +288,13 @@ var hints ={
 			}
 			
 			if( mergable ){
-				gen = true;
-				parent.push("*");
-				var fuzzy_key = parent.reverse().join(".");
-				parent.reverse().pop();
-				merge(fuzzy_key,siblings,parent);
+				if( parent > 2){
+					gen = true;
+					parent.push("*");
+					var fuzzy_key = parent.reverse().join(".");
+					parent.reverse().pop();
+					merge(fuzzy_key,siblings,parent);
+				}
 			}
 		}
 		
