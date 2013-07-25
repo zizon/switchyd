@@ -271,7 +271,13 @@ var hints ={
 
             // no fuzzy match
             var mergable = true;
+            var num_of_siblings = 0;
+            
+            out:
             for( var sibling in siblings ){
+                // count siblings
+                num_of_siblings++;
+                
                 // fuzzy is ok for grandchild
                 if( "*" in siblings[sibling] ){
                     // mergable
@@ -280,21 +286,16 @@ var hints ={
 
                 for( var child in siblings[sibling] ){
                     mergable = false;
-                    break;
+                    break out;
                 }
-
-                // quick quit
-                if(!mergable){
-                    break;
-                }
-            }
-
+            }     
+            
             if( mergable ){
-                if( parent.length > 2){
+                if( parent.length > 2 && num_of_siblings > 1 ){
                     gen = true;
                     parent.push("*");
                     var fuzzy_key = parent.reverse().join(".");
-                    //parent.reverse().pop(); // not worth to reset
+                    parent.reverse().pop(); 
                     merge(fuzzy_key,siblings,parent);
                 }
             }
