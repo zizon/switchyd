@@ -283,7 +283,7 @@ var hints ={
                     // mergable
                     continue;
                 }
-
+                
                 for( var child in siblings[sibling] ){
                     mergable = false;
                     break out;
@@ -291,7 +291,7 @@ var hints ={
             }     
             
             if( mergable ){
-                if( parent.length > 2 && num_of_siblings > 1 ){
+                if( parent.length > 1 && num_of_siblings > 1 ){
                     gen = true;
                     parent.push("*");
                     var fuzzy_key = parent.reverse().join(".");
