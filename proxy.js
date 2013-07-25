@@ -290,11 +290,11 @@ var hints ={
             }
 
             if( mergable ){
-                if( parent > 2){
+                if( parent.length > 2){
                     gen = true;
                     parent.push("*");
                     var fuzzy_key = parent.reverse().join(".");
-                    parent.reverse().pop();
+                    //parent.reverse().pop(); // not worth to reset
                     merge(fuzzy_key,siblings,parent);
                 }
             }
