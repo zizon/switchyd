@@ -1,6 +1,6 @@
 {
 	"name": "switchyd",
-	"version": "0.6.11.4",
+	"version": "0.6.11.5",
 	"manifest_version": 2,
     
 	"background":{
@@ -11,6 +11,7 @@
     "options_page": "options.html",
 
 	"permissions": [
+        "alarms",
         "proxy",
         "webRequest",
         "http://*/*",

@@ -100,7 +100,7 @@ var engine = {
                 return servers[Date.now()%servers.length];
             }
 
-            return matchFuzzy(host,lookup,false)["fuzzy"] ? servers[Date.now()%servers.length] : "DIRECT;";
+            return matchFuzzy(host,lookup,false)["hit"] ? servers[Date.now()%servers.length] : "DIRECT;";
         }
 
         return "var lookup = " + JSON.stringify(lookup) + ";\n"
@@ -162,7 +162,7 @@ var hints ={
         return host.split(".").reduceRight(
             function( previous, current, index, array ){
                 // directive ignore
-                if( previous["ignore"] ){
+                if( previous["stop"] ){
                     return previous;
                 }
 
@@ -170,11 +170,11 @@ var hints ={
 
                 // see if current context has fuzzy
                 if( "*" in ctx_lookup || current == "*" ){
-                    // mark it
+                    // set up stop flag
+                    previous["stop"] = true;
+                    
+                    // indicate a fuzzy match
                     previous["fuzzy"] = true;
-
-                    // set up ignore flag
-                    previous["ignore"] = true;
 
                     // modiry current representation.
                     // it is a fuzzy match
@@ -189,7 +189,8 @@ var hints ={
                     previous["context"].push(current);
                 }else{
                     // not match,and directive *NOT* to create new
-                    previous["ignore"] = true;
+                    previous["stop"] = true;
+                    previous["hit"] = false;
                 }
 
                 return previous;
@@ -197,8 +198,9 @@ var hints ={
             {
                 "lookup":lookup,
                 "fuzzy":false,
-                "ignore":false,
-                "context":[]
+                "stop":false,
+                "context":[],
+                "hit":true
             }
         );
     },
@@ -214,32 +216,31 @@ var hints ={
         var lookup = this.genLookup();
         var gen = false;
 
-        var merge = function(fuzzy_key,siblings,parent){
-            var half_merge = function(siblings,parent){
+        var sweep = function(fuzzy_key,siblings,parent){
+            var counting = function(siblings,parent){
                 var counter = 0;
                 for( var child in siblings ){
                     parent.push(child);
-                    counter += half_merge(siblings[child],parent);
+                    counter += counting(siblings[child],parent);
                     parent.pop();
                     delete siblings[child];
                 }
 
-                // may reach leaf
-                if( counter == 0 ){
-                    var key = parent.reverse().join(".");
-                    if( key in hints.marks ){
-                        counter += hints.marks[key];
-                        delete hints.marks[key];
-                    }
-                    parent.reverse();
+                // count parent
+                var key = parent.reverse().join(".");
+                if( key in hints.marks ){
+                    counter += hints.marks[key];
+                    delete hints.marks[key];
                 }
+                parent.reverse();
+                
 
                 return counter;
             }
 
             // counting
             var old_counter = fuzzy_key in hints.marks ?  hints.marks[fuzzy_key] : 0;
-            var counter = half_merge(siblings,parent);
+            var counter = counting(siblings,parent);
 
             // update track context
             siblings["*"] = {};
@@ -262,28 +263,20 @@ var hints ={
                 },
                 lookup
             );
-
+            
             if( match["fuzzy"] ){				
-                // merge,directive code generation
-                gen = merge(match["context"].reverse().join("."),siblings,parent) || gen;
+                // do sweep,directive code generation
+                gen = sweep(match["context"].reverse().join("."),siblings,parent) || gen;
                 continue;
             }
 
-            // no fuzzy match
+            // concrete match
             var mergable = true;
             var num_of_siblings = 0;
             
             out:
             for( var sibling in siblings ){
-                // count siblings
-                num_of_siblings++;
-                
-                // fuzzy is ok for grandchild
-                if( "*" in siblings[sibling] ){
-                    // mergable
-                    continue;
-                }
-                
+                // if lower level has its children,mark it not mergable
                 for( var child in siblings[sibling] ){
                     mergable = false;
                     break out;
@@ -291,12 +284,12 @@ var hints ={
             }     
             
             if( mergable ){
-                if( parent.length > 1 && num_of_siblings > 1 ){
+                if( parent.length > 1 ){
                     gen = true;
                     parent.push("*");
                     var fuzzy_key = parent.reverse().join(".");
                     parent.reverse().pop(); 
-                    merge(fuzzy_key,siblings,parent);
+                    sweep(fuzzy_key,siblings,parent);
                 }
             }
         }
@@ -307,7 +300,7 @@ var hints ={
     "markOK":function(host){
         if( host in this.complete ){
             if( this.complete[host] < Number.MAX_VALUE ){
-                this.complete[host]++;
+                this.complete[host] += 1;
             }
         }else{
             this.complete[host] = 1;
@@ -341,22 +334,12 @@ var hints ={
                 console.log("drop proxy:" + host);
                 delete this.marks[host];
                 this.codegen();
+                localStorage.setItem("hints.marks",JSON.stringify(this.marks));
             }
         }else{
             // not in proxy yet,add it
             this.marks[host] = 2;
             this.codegen();
-        }
-    },
-
-    "mayFail":function(host){
-        if( host in this.candidate ){
-            if( ++this.candidate[host] > 3 ){
-                console.log("much time out/abort promote to marks:" + host);
-                this.markFail(host);
-            }
-        }else{
-            this.candidate[host] = 1;
         }
     }
 }
@@ -399,9 +382,11 @@ function handInRequest(){
                 case "net::ERR_CONNECTION_TIMED_OUT":
                     hints.markFail(extractHost(details.url));
                     break;
+                    /*
                 case "net::ERR_CONNECTION_ABORTED":
                     hints.mayFail(extractHost(details.url));
                     break;
+                    */
             }
         },
         {
