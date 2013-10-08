@@ -380,7 +380,7 @@ function handInRequest(){
             switch(details.error){
                 case "net::ERR_CONNECTION_RESET":
                 case "net::ERR_CONNECTION_TIMED_OUT":
-                case "ERR_SSL_PROTOCOL_ERROR":
+                case "net::ERR_SSL_PROTOCOL_ERROR":
                     hints.markFail(extractHost(details.url));
                     break;
             }
