@@ -29,6 +29,175 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 "use strict";
 
+var switchyd = {
+    config:{
+        servers:[
+            {
+                type:"SOCK5",
+                ip:"127.0.0.1",
+                port:10086
+            }
+        ]
+    },
+    
+    sync:(function(){
+        var self = this;
+        return {
+            load:function(){
+                return localStorage.getItem("switchyd.config");
+            },
+            
+            save:function(){
+                localStorage.setItem("switchyd.config",self.config);    
+            }
+        };
+    })(),
+    
+    tracer:(function(){
+        this._tracking = {};
+        return function(name){
+            if( name in this._tracking ){
+                return this._tracking[name];
+            }
+            
+            // not present yet,create one
+            return {
+                urls:{},
+                
+                track:function(url){
+                    url in this.urls ? 0 : this.urls[url]=0;
+                },
+            };
+        }
+    })(),
+    
+    compile:function(tracer){
+        var compiled = {};
+        
+        var transform = function(final,part){
+            return part in final ? final[part] : final[part] = {};
+        };
+        
+        // loop each node
+        for(var url in tracer.urls){
+            url.split(".").reduceRight(transform,compiled);
+        }
+        
+        return compiled;
+    },
+    
+    optimize:(function(){
+        var no_children = function(node){
+            for(var child in node){
+                if( child !== "*" ){
+                    return false;
+                }
+            }
+            
+            return true;
+        };
+        
+        return function(compiled,depth){
+            // ensure default value
+            depth = typeof depth == "undefined" ? 1 : depth;
+            
+            // leaf
+            if( no_children(compiled) ){
+                return compiled;
+            }
+            
+            var mergable = true;
+            // none leaf
+            for(var part in compiled){
+                // recrusive optimize
+                mergable = no_children(compiled[part] = this.optimize(compiled[part],depth+1) );
+            }
+            
+            // see if mergable
+            if( mergable ){
+                if( depth > 2 ){
+                    for(var child in compiled){
+                        delete compiled[child];
+                    }
+                
+                    // add fuzzy mark
+                    compiled["*"]={};
+                }
+            }
+            
+            return compiled;
+        };
+    })(),
+    
+    match:function(compiled,url){
+        return url.split(".").reduceRight(function(context,part){
+            if( context ){
+                return part in context ? context[part] : false;
+            }
+            
+            return false;
+        },compiled) !== false;
+    },
+    
+    link:function(compiled){
+        var shuffle = function(arrays){
+            switch(arrays){
+                case 0:case 1:
+                    return [arrays];
+                case 2:
+                    return [
+                        [arrays[0],arrays[1]],
+                        [arrays[1],arrays[0]]
+                    ];
+            }
+            
+            return shuffle(arrays.slice(1)).reduce(function(shuffled,candidate,index,paritial){
+                shuffled = index === 0 ? [ [].concat(arrays[0],candidate) ] : shuffled;
+                shuffled.push([].concat(candidate.slice(0,index),arrays[0],candidate.slice(index)));
+                return shuffled;
+            },[]);
+        };
+        
+        // make server load balance
+        var load_balance = shuffle(this.config.servers).map(function(servers){
+            return [].concat(servers.map(function(server){
+               return [server.type," " , server.ip,":",server.port]; 
+            }),"DIRECT").join(";");
+        });
+        
+        var search = this.search;
+        var template = function(_,host){
+            if( search(compiled,host) ){
+                return load_balance[Date.now()%load_balance.length];
+            }
+            
+            return "DIRECT;"
+        };
+        
+        var script ="var load_balance = " + load_balance + ";\n"
+                    + "var compiled = " + JSON.stringify(this.tracer("proxy")) + ";\n"
+                    + "var search = " + this.search.toString() + ";\n"
+                    + "var FindProxyForURL = " + template.toString() + ";";
+        chrome.proxy.settings.set(
+            {
+                "value":{
+                    "mode":"pac_script",
+                    "pacScript":{
+                        "mandatory":true,
+                        "data":script
+                    }
+                }
+            },
+
+            function(){
+                console.log("setting apply");
+            }
+        );
+        
+        return script;
+    }
+};
+
 var config = {
     "servers":"SOCKS5 127.0.0.1:10086;"
 };
