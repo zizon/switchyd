@@ -31,7 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 var config = {
     "servers":"SOCKS5 127.0.0.1:10086;"
-}
+};
 
 var engine = {
     "shuffle" : function(more){
@@ -64,16 +64,16 @@ var engine = {
 
     "gen":function(hints){
         // build lookup
-        var lookup = hints.genLookup();
+        var lookup = hints.genLookup(hints.marks);
         var marks = hints.marks;
 
         // backward compatible
-        var candidates = config["servers"].split(";").reduce(
+        var candidates = config.servers.split(";").reduce(
             function(concated,item){
                 item = item.trim();
-                if(item.indexOf("HTTPS") == 0){
+                if(item.indexOf("HTTPS") !== 0){
                     concated.push("PROXY " + item.substr(5));
-                }else if(item.indexOf("HTTP") == 0){
+                }else if(item.indexOf("HTTP") !== 0){
                     concated.push("PROXY " + item.substr(4));
                 }else if(item.length > 0){
                     concated.push(item);
@@ -83,7 +83,7 @@ var engine = {
             },
             []
         );
-        config["servers"] = candidates.join(";");
+        config.servers = candidates.join(";");
 
         // shuffle servers,aim to randomize proxy load
         var servers = this.shuffle(candidates).map(function(i){
@@ -100,8 +100,8 @@ var engine = {
                 return servers[Date.now()%servers.length];
             }
 
-            return matchFuzzy(host,lookup,false)["hit"] ? servers[Date.now()%servers.length] : "DIRECT;";
-        }
+            return matchFuzzy(host,lookup,false).hit ? servers[Date.now()%servers.length] : "DIRECT;";
+        };
 
         return "var lookup = " + JSON.stringify(lookup) + ";\n"
             +   "var marks = " + JSON.stringify(marks) + ";\n"
@@ -109,7 +109,7 @@ var engine = {
             +   "var matchFuzzy = " + matchFuzzy.toString() + ";\n"
             +   "var FindProxyForURL = " + template.toString() + ";"; 
     }
-}
+};
 
 function syncProxyConfig(){
     localStorage.setItem("proxy.config",JSON.stringify(config));
@@ -117,21 +117,22 @@ function syncProxyConfig(){
 
 function restoreProxyConfig(){
     var stored = localStorage.getItem("proxy.config");
-    if( stored != null ){
+    if( stored !== null ){
         config = JSON.parse(stored);
     }
 }
 
 var hints ={
+    "exclude":{},
+    
     "marks":{},
 
     "complete":{},
 
     "candidate":{},
 
-    "genLookup":function(){
+    "genLookup":function(marks){
         var lookup = {};
-        var marks = this.marks;
         for(var key in marks){
             if( marks[key] <= 0 ){
                 delete marks[key];
@@ -162,35 +163,35 @@ var hints ={
         return host.split(".").reduceRight(
             function( previous, current, index, array ){
                 // directive ignore
-                if( previous["stop"] ){
+                if( previous.stop ){
                     return previous;
                 }
 
-                var ctx_lookup = previous["lookup"];
+                var ctx_lookup = previous.lookup;
 
                 // see if current context has fuzzy
                 if( "*" in ctx_lookup || current == "*" ){
                     // set up stop flag
-                    previous["stop"] = true;
+                    previous.stop = true;
                     
                     // indicate a fuzzy match
-                    previous["fuzzy"] = true;
+                    previous.fuzzy = true;
 
                     // modiry current representation.
                     // it is a fuzzy match
-                    previous["context"].push("*");
+                    previous.context.push("*");
                 }else if( current in ctx_lookup ){
                     // match , drill down
-                    previous["lookup"] = ctx_lookup[current];
-                    previous["context"].push(current);
+                    previous.lookup = ctx_lookup[current];
+                    previous.context.push(current);
                 }else if( create_when_miss ){
                     // not match,and directive to create new
-                    previous["lookup"] = ctx_lookup[current] = {};
-                    previous["context"].push(current);
+                    previous.lookup = ctx_lookup[current] = {};
+                    previous.context.push(current);
                 }else{
                     // not match,and directive *NOT* to create new
-                    previous["stop"] = true;
-                    previous["hit"] = false;
+                    previous.stop = true;
+                    previous.hit = false;
                 }
 
                 return previous;
@@ -213,7 +214,7 @@ var hints ={
         }
 
         // lookup table
-        var lookup = this.genLookup();
+        var lookup = this.genLookup(hints.marks);
         var gen = false;
 
         var sweep = function(fuzzy_key,siblings,parent){
@@ -236,7 +237,7 @@ var hints ={
                 
 
                 return counter;
-            }
+            };
 
             // counting
             var old_counter = fuzzy_key in hints.marks ?  hints.marks[fuzzy_key] : 0;
@@ -247,7 +248,7 @@ var hints ={
             hints.marks[fuzzy_key] = counter;
 
             return old_counter != counter;
-        }
+        };
 
         for( var key in this.marks ){
             var match = this.match(key,lookup,false);
@@ -264,20 +265,19 @@ var hints ={
                 lookup
             );
             
-            if( match["fuzzy"] ){				
+            if( match.fuzzy ){				
                 // do sweep,directive code generation
-                gen = sweep(match["context"].reverse().join("."),siblings,parent) || gen;
+                gen = sweep(match.context.reverse().join("."),siblings,parent) || gen;
                 continue;
             }
 
             // concrete match
             var mergable = true;
-            var num_of_siblings = 0;
             
             out:
             for( var sibling in siblings ){
                 // if lower level has its children,mark it not mergable
-                for( var child in siblings[sibling] ){
+                for( var _ in siblings[sibling] ){
                     mergable = false;
                     break out;
                 }
@@ -342,13 +342,21 @@ var hints ={
             this.codegen();
         }
     }
-}
+};
 
 function resoreHints(){
     console.log("restore hints");
     var cache = localStorage.getItem("hints.marks");
-    if( cache == null ){
+    if( cache === null ){
         return;
+    }
+    
+    console.log("restore exclude");
+    var exclude = localStorage.getItem("hints.exclude");
+    if( exclude === null ){
+        hints.exclude = {};
+    }else{
+        hints.exclude = exclude;
     }
 
     cache = JSON.parse(cache);
@@ -431,7 +439,7 @@ function schedule(){
 
             // loop hints.complete list,
             // update counter in marks.
-            var lookup = hints.genLookup();
+            var lookup = hints.genLookup(hints.marks);
             for( var key in hints.complete ){
                 if( key in hints.marks ){
                     hints.marks[key] += hints.complete[key];
@@ -439,8 +447,8 @@ function schedule(){
                 }
 
                 var match = hints.match(key,lookup,false);
-                if( match["fuzzy"] ){
-                    hints.marks[match["context"].reverse().join(".")] += hints.complete[key];
+                if( match.fuzzy ){
+                    hints.marks[match.context.reverse().join(".")] += hints.complete[key];
                 }
             }
 
