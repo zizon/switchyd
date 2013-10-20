@@ -64,7 +64,7 @@ var switchyd = {
             }
             
             // not present yet,create one
-            return {
+            return tracking[name] = {
                 urls:{},
                 
                 track:function(url){
