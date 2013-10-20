@@ -149,7 +149,7 @@ var switchyd = {
     
     link:function(compiled){
         var shuffle = function(arrays){
-            switch(arrays){
+            switch(arrays.length){
                 case 0:case 1:
                     return [arrays];
                 case 2:
@@ -160,8 +160,10 @@ var switchyd = {
             }
             
             return shuffle(arrays.slice(1)).reduce(function(shuffled,candidate,index,paritial){
-                shuffled = index === 0 ? [ [].concat(arrays[0],candidate) ] : shuffled;
-                shuffled.push([].concat(candidate.slice(0,index),arrays[0],candidate.slice(index)));
+                for( var i=0; i<candidate.length; i++ ){
+                    shuffled.push([].concat(candidate.slice(0,i),arrays[0],candidate.slice(i)));
+                }
+                shuffled.push([].concat(candidate,arrays[0]));
                 return shuffled;
             },[]);
         };
@@ -169,11 +171,11 @@ var switchyd = {
         // make server load balance
         var load_balance = shuffle(this.config.servers).map(function(servers){
             return [].concat(servers.map(function(server){
-               return [server.type," " , server.ip,":",server.port]; 
+               return [server.type," " , server.ip,":",server.port].join(""); 
             }),"DIRECT").join(";");
         });
         
-        var search = this.search;
+        var search = this.match;
         var template = function(_,host){
             if( search(compiled,host) ){
                 return load_balance[Date.now()%load_balance.length];
@@ -182,9 +184,9 @@ var switchyd = {
             return "DIRECT;";
         };
         
-        var script ="var load_balance = " + load_balance + ";\n"
-                    + "var compiled = " + JSON.stringify(this.tracer("proxy")) + ";\n"
-                    + "var search = " + this.search.toString() + ";\n"
+        var script ="var load_balance = " + JSON.stringify(load_balance) + ";\n"
+                    + "var compiled = " + JSON.stringify(compiled) + ";\n"
+                    + "var search = " + search.toString() + ";\n"
                     + "var FindProxyForURL = " + template.toString() + ";";
         chrome.proxy.settings.set(
             {
@@ -250,6 +252,11 @@ var switchyd = {
     })()
 };
 
+switchyd.config.servers = [
+    {type:"SOCK5",ip:"127.0.0.1",port:10086},
+    {type:"SOCK5",ip:"127.0.0.1",port:10087},
+    {type:"SOCK5",ip:"127.0.0.1",port:10086}
+];
 switchyd.tracer("t").track("www.google.com")
     .track("www.baidu.com")
     .track("twitter.com")
@@ -260,3 +267,5 @@ var a=switchyd.compile(switchyd.tracer("t"));
 var b = switchyd.optimize(a);
 console.log(switchyd.match(b,"www.baidu.com"));
 console.log(switchyd.match(b,"www.google.com"));
+console.log(switchyd.link(b));
+
