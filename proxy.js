@@ -219,7 +219,7 @@ var switchyd = {
             for( var key in from ){
                 merge(from[key],key in to ? to[key] : to[key]={});
             }
-        }
+        };
  
         var optimize = function(){
             merge(self.optimize(self.compile(self.tracer("do_not_track"))),self.config.tracers.do_not_track);
@@ -229,7 +229,6 @@ var switchyd = {
 
         // preiod optimize
         chrome.alarms.create("optimize",{"periodInMinutes":5});
-        
         chrome.alarms.onAlarm.addListener(function( alarm ){
             switch(alarm.name){
                 case "optimize":
@@ -257,7 +256,7 @@ var switchyd = {
                     if( !self.match(self.config.tracers.do_not_track,url) ){
                         self.tracer("proxy").track(url);
                         optimize();
-                        self.link(self.config.tracers.proxy)
+                        self.link(self.config.tracers.proxy);
                     }
                     break;
             }
