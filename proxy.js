@@ -42,21 +42,19 @@ var switchyd = {
         tracers:{},
     },
     
-    sync:(function(){
-        var self = this;
-        return {
-            load:function(){
-                var config = localStorage.getItem("switchd.config");
-                if( config ){
-                    self.config = config;
-                }            
-            },            
-            
-            save:function(){
-                localStorage.setItem("switchyd.config",self.config);    
-            }
-        };
-    })(),
+    sync:{
+        load:function(){
+            var config = localStorage.getItem("switchyd.config");
+            if( config ){
+                switchyd.config = JSON.parse(config);
+            }            
+        },            
+
+        save:function(){
+            console.log(switchyd);
+            localStorage.setItem("switchyd.config",JSON.stringify(switchyd.config));    
+        }
+    },
     
     tracer:(function(){
         var tracking = {};
