@@ -33,13 +33,16 @@ var switchyd = {
     config:{
         servers:[
             {
-                type:"SOCK5",
+                type:"SOCKS5",
                 ip:"127.0.0.1",
                 port:10086
             }
         ],
         
-        tracers:{},
+        tracers:{
+            proxy:{},
+            do_not_track:{}
+        },
     },
     
     sync:{
@@ -51,7 +54,6 @@ var switchyd = {
         },            
 
         save:function(){
-            console.log(switchyd);
             localStorage.setItem("switchyd.config",JSON.stringify(switchyd.config));    
         }
     },
@@ -200,20 +202,22 @@ var switchyd = {
             },
 
             function(){
-                console.log("setting apply");
+                console.log("setting apply,sciprt:\n"+script);
             }
         );
         
         return script;
     },
     
-    plug:(function(){
+    plug:function(){
         var self = this;
         
         var optimize = function(){
-            self.config.tracer.do_not_track = self.optimize(self.compile(self.tracer("do_not_track")));
-            self.config.tracer.proxy = self.optimize(self.compile(self.tracer("proxy")));
-        }
+            self.config.tracers.do_not_track = self.optimize(self.compile(self.tracer("do_not_track")));
+            self.config.tracers.proxy = self.optimize(self.compile(self.tracer("proxy")));
+            self.sync.save();
+        };
+
         // preiod optimize
         chrome.alarms.create("optimize",{"periodInMinutes":5});
         
@@ -221,9 +225,13 @@ var switchyd = {
             switch(alarm.name){
                 case "optimize":
                     optimize();
-                    self.sync();
+                    self.sync.save();
                     break;
             }
+        });
+
+        chrome.proxy.onProxyError.addListener(function(details){
+            console.error("proxy error:" + details);
         });
         
         // network diagnose
@@ -232,40 +240,24 @@ var switchyd = {
             
             // inspect potential reset request
             switch(details.error){
+                case "net::ERR_TIMED_OUT":
                 case "net::ERR_CONNECTION_RESET":
                 case "net::ERR_CONNECTION_TIMED_OUT":
                 case "net::ERR_SSL_PROTOCOL_ERROR":
                     var start = details.url.indexOf("://") + 3;
                     var url = details.url.substr(start,details.url.indexOf("/",start) - start);
-                    if( !self.search(self.config.tracer.do_not_track) ){
-                        self.tracer("candidate").track(url);
-                        self.plug();
+                    if( !self.match(self.config.tracers.do_not_track,url) ){
+                        self.tracer("proxy").track(url);
+                        optimize();
+                        self.link(self.config.tracers.proxy)
                     }
                     break;
             }
         },{"urls":["<all_urls>"]});
         
-        return function(){
-            optimize();
-            self.link(self.config.tracer.proxy);
-        }
-    })()
+        optimize();
+        this.link(this.config.tracers.proxy);
+    }
 };
 
-switchyd.config.servers = [
-    {type:"SOCK5",ip:"127.0.0.1",port:10086},
-    {type:"SOCK5",ip:"127.0.0.1",port:10087},
-    {type:"SOCK5",ip:"127.0.0.1",port:10086}
-];
-switchyd.tracer("t").track("www.google.com")
-    .track("www.baidu.com")
-    .track("twitter.com")
-    .track("api.twitter.com")
-    .track("t.co")
-    .track("gmail.google.com");
-var a=switchyd.compile(switchyd.tracer("t"));
-var b = switchyd.optimize(a);
-console.log(switchyd.match(b,"www.baidu.com"));
-console.log(switchyd.match(b,"www.google.com"));
-console.log(switchyd.link(b));
-
+switchyd.plug();
