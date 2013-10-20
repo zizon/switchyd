@@ -47,6 +47,7 @@ var switchyd = {
     
     sync:{
         load:function(){
+            console.log("load config");
             var config = localStorage.getItem("switchyd.config");
             if( config ){
                 switchyd.config = JSON.parse(config);
@@ -54,6 +55,7 @@ var switchyd = {
         },            
 
         save:function(){
+            console.log("save config");
             localStorage.setItem("switchyd.config",JSON.stringify(switchyd.config));    
         }
     },
@@ -210,11 +212,18 @@ var switchyd = {
     },
     
     plug:function(){
+        this.sync.load();
         var self = this;
-        
+
+        var merge = function(from,to){
+            for( var key in from ){
+                merge(from[key],key in to ? to[key] : to[key]={});
+            }
+        }
+ 
         var optimize = function(){
-            self.config.tracers.do_not_track = self.optimize(self.compile(self.tracer("do_not_track")));
-            self.config.tracers.proxy = self.optimize(self.compile(self.tracer("proxy")));
+            merge(self.optimize(self.compile(self.tracer("do_not_track"))),self.config.tracers.do_not_track);
+            merge(self.optimize(self.compile(self.tracer("proxy"))),self.config.tracers.proxy);
             self.sync.save();
         };
 
@@ -240,7 +249,6 @@ var switchyd = {
             
             // inspect potential reset request
             switch(details.error){
-                case "net::ERR_TIMED_OUT":
                 case "net::ERR_CONNECTION_RESET":
                 case "net::ERR_CONNECTION_TIMED_OUT":
                 case "net::ERR_SSL_PROTOCOL_ERROR":
@@ -255,7 +263,6 @@ var switchyd = {
             }
         },{"urls":["<all_urls>"]});
         
-        optimize();
         this.link(this.config.tracers.proxy);
     }
 };
