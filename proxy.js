@@ -69,6 +69,7 @@ var switchyd = {
                 
                 track:function(url){
                     url in this.urls ? 0 : this.urls[url]=0;
+                    return this;
                 },
             };
         };
@@ -110,14 +111,17 @@ var switchyd = {
             }
             
             var mergable = true;
+            var number_of_children = 0;
+
             // none leaf
             for(var part in compiled){
+                number_of_children++;
                 // recrusive optimize
-                mergable = no_children(compiled[part] = this.optimize(compiled[part],depth+1) );
+                mergable = mergable && no_children(compiled[part] = this.optimize(compiled[part],depth+1) );
             }
             
             // see if mergable
-            if( mergable ){
+            if( mergable && number_of_children > 1 ){
                 if( depth > 2 ){
                     for(var child in compiled){
                         delete compiled[child];
@@ -244,3 +248,11 @@ var switchyd = {
         }
     })()
 };
+
+switchyd.tracer("t").track("www.google.com")
+    .track("www.baidu.com")
+    .track("twitter.com")
+    .track("api.twitter.com")
+    .track("t.co")
+    .track("gmail.google.com");
+var a=switchyd.compile(switchyd.tracer("t"));
