@@ -138,11 +138,12 @@ var switchyd = {
     
     match:function(compiled,url){
         return url.split(".").reduceRight(function(context,part){
-            if( context ){
-                return part in context ? context[part] : false;
-            }
-            
-            return false;
+            return context ? 
+                    context === true ?
+                        true : part in context ?
+                            context[part] : "*" in context ?
+                                true : false 
+                    : false;
         },compiled) !== false;
     },
     
@@ -256,3 +257,6 @@ switchyd.tracer("t").track("www.google.com")
     .track("t.co")
     .track("gmail.google.com");
 var a=switchyd.compile(switchyd.tracer("t"));
+var b = switchyd.optimize(a);
+console.log(switchyd.match(b,"www.baidu.com"));
+console.log(switchyd.match(b,"www.google.com"));
