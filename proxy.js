@@ -42,11 +42,6 @@ var switchyd = {
         tracers:{
             proxy:{},
             do_not_track:{}
-        },
-        
-        compact:function(){
-            switchyd.async.merge(switchyd.optimize(switchyd.compile(switchyd.tracer("do_not_track"))),switchyd.config.tracers.do_not_track);
-            switchyd.async.merge(switchyd.optimize(switchyd.compile(switchyd.tracer("proxy"))),switchyd.config.tracers.proxy);
         }
     },
     
@@ -61,6 +56,8 @@ var switchyd = {
 
         save:function(){
             console.log("save config");
+            switchyd.async.merge(switchyd.optimize(switchyd.compile(switchyd.tracer("do_not_track"))),switchyd.config.tracers.do_not_track);
+            switchyd.async.merge(switchyd.optimize(switchyd.compile(switchyd.tracer("proxy"))),switchyd.config.tracers.proxy);
             localStorage.setItem("switchyd.config",JSON.stringify(switchyd.config));    
         }
     },
@@ -178,7 +175,6 @@ var switchyd = {
                 // pop
             }
             
-            switchyd.config.compact();            
             switchyd.sync.save();
             switchyd.link(switchyd.config.tracers.proxy);
         }
@@ -253,7 +249,6 @@ var switchyd = {
         chrome.alarms.onAlarm.addListener(function( alarm ){
             switch(alarm.name){
                 case "optimize":
-                    self.config.compact();
                     self.sync.save();
                     break;
                 case "async":
