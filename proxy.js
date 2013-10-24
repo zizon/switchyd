@@ -43,6 +43,11 @@ var switchyd = {
             proxy:{},
             do_not_track:{}
         },
+        
+        compact:function(){
+            switchyd.async.merge(switchyd.optimize(switchyd.compile(switchyd.tracer("do_not_track"))),switchyd.config.tracers.do_not_track);
+            switchyd.async.merge(switchyd.optimize(switchyd.compile(switchyd.tracer("proxy"))),switchyd.config.tracers.proxy);
+        }
     },
     
     sync:{
@@ -151,6 +156,34 @@ var switchyd = {
         },compiled) !== false;
     },
     
+    async:{
+        work:0,
+        
+        merge:function(from,to){
+            for( var key in from ){
+                this.merge(from[key],key in to ? to[key] : to[key]={});
+            }
+        },
+        
+        offer:function(work){
+            // delay link work,
+            // avoid burst
+            if ( this.work++ === 0 ) {
+                chrome.alarms.create("async",{when:Date.now()+2000});
+            }
+        },
+
+        consume:function(){
+            while (--this.work > 0) {
+                // pop
+            }
+            
+            switchyd.config.compact();            
+            switchyd.sync.save();
+            switchyd.link(switchyd.config.tracers.proxy);
+        }
+    },
+    
     link:function(compiled){
         var shuffle = function(arrays){
             switch(arrays.length){
@@ -215,25 +248,16 @@ var switchyd = {
         this.sync.load();
         var self = this;
 
-        var merge = function(from,to){
-            for( var key in from ){
-                merge(from[key],key in to ? to[key] : to[key]={});
-            }
-        };
- 
-        var optimize = function(){
-            merge(self.optimize(self.compile(self.tracer("do_not_track"))),self.config.tracers.do_not_track);
-            merge(self.optimize(self.compile(self.tracer("proxy"))),self.config.tracers.proxy);
-            self.sync.save();
-        };
-
         // preiod optimize
-        chrome.alarms.create("optimize",{"periodInMinutes":5});
+        chrome.alarms.create("optimize",{periodInMinutes:5});
         chrome.alarms.onAlarm.addListener(function( alarm ){
             switch(alarm.name){
                 case "optimize":
-                    optimize();
+                    self.config.compact();
                     self.sync.save();
+                    break;
+                case "async":
+                    self.async.consume();
                     break;
             }
         });
@@ -255,14 +279,13 @@ var switchyd = {
                     var url = details.url.substr(start,details.url.indexOf("/",start) - start);
                     if( !self.match(self.config.tracers.do_not_track,url) ){
                         self.tracer("proxy").track(url);
-                        optimize();
-                        self.link(self.config.tracers.proxy);
+                        self.async.offer();
                     }
                     break;
             }
         },{"urls":["<all_urls>"]});
         
-        this.link(this.config.tracers.proxy);
+        this.async.offer();
     }
 };
 
