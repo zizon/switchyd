@@ -56,8 +56,13 @@ var switchyd = {
 
         save:function(){
             console.log("save config");
-            switchyd.async.merge(switchyd.optimize(switchyd.compile(switchyd.tracer("do_not_track"))),switchyd.config.tracers.do_not_track);
-            switchyd.async.merge(switchyd.optimize(switchyd.compile(switchyd.tracer("proxy"))),switchyd.config.tracers.proxy);
+            for(var tracer in switchyd.config.tracers){
+                switchyd.async.merge(
+                    switchyd.build(tracer),
+                    switchyd.config.tracers[tracer]
+                );
+            }
+
             localStorage.setItem("switchyd.config",JSON.stringify(switchyd.config));    
         }
     },
@@ -142,6 +147,13 @@ var switchyd = {
         };
     })(),
     
+    build:function(tracer){
+        var target = this.optimize(this.compile(this.tracer(tracer)));
+        switchyd.async.merge(target,switchyd.config.tracers.proxy);
+        this.tracer(tracer).urls = {};
+        return switchyd.config.tracers.proxy;
+    },
+
     match:function(compiled,url){
         return url.split(".").reduceRight(function(context,part){
             return context ? 
@@ -166,7 +178,7 @@ var switchyd = {
             // delay link work,
             // avoid burst
             if ( this.work++ === 0 ) {
-                chrome.alarms.create("async",{when:Date.now()+2000});
+                chrome.alarms.create("async",{when:Date.now()+200});
             }
         },
 
@@ -175,8 +187,8 @@ var switchyd = {
                 // pop
             }
             
-            switchyd.sync.save();
             switchyd.link(switchyd.config.tracers.proxy);
+            switchyd.sync.save();
         }
     },
     
