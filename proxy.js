@@ -82,6 +82,10 @@ var switchyd = {
                     url in this.urls ? 0 : this.urls[url]=0;
                     return this;
                 },
+                
+                reset:function(){
+                    this.urls = {};
+                }
             };
         };
     })(),
@@ -132,26 +136,25 @@ var switchyd = {
             }
             
             // see if mergable
-            if( mergable && number_of_children > 1 ){
-                if( depth > 2 ){
-                    for(var child in compiled){
-                        delete compiled[child];
-                    }
-                
-                    // add fuzzy mark
-                    compiled["*"]={};
+            if( mergable && number_of_children > 1 && depth > 2 ){
+                for(var child in compiled){
+                    delete compiled[child];
                 }
+                
+                // add fuzzy mark
+                compiled["*"]={};
             }
             
             return compiled;
         };
     })(),
     
-    build:function(tracer){
-        var target = this.optimize(this.compile(this.tracer(tracer)));
-        switchyd.async.merge(target,switchyd.config.tracers.proxy);
-        this.tracer(tracer).urls = {};
-        return switchyd.config.tracers.proxy;
+    build:function(){
+        for( var tracer in this.config.tracers ){
+            var target = this.optimize(this.compile(this.tracer(tracer)));
+            this.async.merge(target,this.config.tracers[tracer]);
+            this.tracer(tracer).reset();
+        }
     },
 
     match:function(compiled,url){
@@ -174,25 +177,40 @@ var switchyd = {
             }
         },
         
-        offer:function(work){
+        callback:function(alarm){
+            console.log("receive a event:"+alarm.name);        
+            switch(alarm.name){
+                case "async":
+                    chrome.alarms.clear("async");
+                    switchyd.async.dequeue();
+                    break;
+            }
+        },
+        
+        enqueue:function(){
             // delay link work,
             // avoid burst
             if ( this.work++ === 0 ) {
-                chrome.alarms.create("async",{when:Date.now()+200});
+                if (!chrome.alarms.onAlarm.hasListener(this.callback)) {
+                    chrome.alarms.onAlarm.addListener(this.callback);
+                }
+                
+                chrome.alarms.create("async",{when:Date.now()});
             }
         },
 
-        consume:function(){
+        dequeue:function(){
             while (--this.work > 0) {
                 // pop
             }
             
-            switchyd.link(switchyd.config.tracers.proxy);
+            switchyd.build();
+            switchyd.link();
             switchyd.sync.save();
         }
     },
     
-    link:function(compiled){
+    link:function(){
         var shuffle = function(arrays){
             switch(arrays.length){
                 case 0:case 1:
@@ -212,6 +230,7 @@ var switchyd = {
                 return shuffled;
             },[]);
         };
+        var proxy = this.config.tracers.proxy;
         
         // make server load balance
         var load_balance = shuffle(this.config.servers).map(function(servers){
@@ -220,9 +239,9 @@ var switchyd = {
             }),"DIRECT").join(";");
         });
         
-        var search = this.match;
+        var match = this.match;
         var template = function(_,host){
-            if( search(compiled,host) ){
+            if( match(proxy,host) ){
                 return load_balance[Date.now()%load_balance.length];
             }
             
@@ -230,8 +249,8 @@ var switchyd = {
         };
         
         var script ="var load_balance = " + JSON.stringify(load_balance) + ";\n"
-                    + "var compiled = " + JSON.stringify(compiled) + ";\n"
-                    + "var search = " + search.toString() + ";\n"
+                    + "var proxy = " + JSON.stringify(proxy) + ";\n"
+                    + "var search = " + match.toString() + ";\n"
                     + "var FindProxyForURL = " + template.toString() + ";";
         chrome.proxy.settings.set(
             {
@@ -254,20 +273,6 @@ var switchyd = {
     
     plug:function(){
         this.sync.load();
-        var self = this;
-
-        // preiod optimize
-        chrome.alarms.create("optimize",{periodInMinutes:5});
-        chrome.alarms.onAlarm.addListener(function( alarm ){
-            switch(alarm.name){
-                case "optimize":
-                    self.sync.save();
-                    break;
-                case "async":
-                    self.async.consume();
-                    break;
-            }
-        });
 
         chrome.proxy.onProxyError.addListener(function(details){
             console.error("proxy error:" + details);
@@ -284,15 +289,15 @@ var switchyd = {
                 case "net::ERR_SSL_PROTOCOL_ERROR":
                     var start = details.url.indexOf("://") + 3;
                     var url = details.url.substr(start,details.url.indexOf("/",start) - start);
-                    if( !self.match(self.config.tracers.do_not_track,url) ){
-                        self.tracer("proxy").track(url);
-                        self.async.offer();
+                    if( !switchyd.match(switchyd.config.tracers.do_not_track,url) ){
+                        switchyd.tracer("proxy").track(url);
+                        switchyd.async.enqueue();
                     }
                     break;
             }
         },{"urls":["<all_urls>"]});
         
-        this.async.offer();
+        this.async.enqueue();
     }
 };
 
