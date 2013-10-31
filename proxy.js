@@ -151,9 +151,10 @@ var switchyd = {
     
     build:function(){
         for( var tracer in this.config.tracers ){
-            var target = this.optimize(this.compile(this.tracer(tracer)));
-            this.async.merge(target,this.config.tracers[tracer]);
+            var target = this.compile(this.tracer(tracer));
             this.tracer(tracer).reset();
+            this.async.merge(target,this.config.tracers[tracer]);
+            this.optimize(this.config.tracers[tracer]);
         }
     },
 
