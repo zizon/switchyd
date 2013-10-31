@@ -250,7 +250,7 @@ var switchyd = {
         
         var script ="var load_balance = " + JSON.stringify(load_balance) + ";\n"
                     + "var proxy = " + JSON.stringify(proxy) + ";\n"
-                    + "var search = " + match.toString() + ";\n"
+                    + "var match = " + match.toString() + ";\n"
                     + "var FindProxyForURL = " + template.toString() + ";";
         chrome.proxy.settings.set(
             {
