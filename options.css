@@ -1,0 +1,39 @@
+div {
+    display:block;
+    margin:0 auto 0 auto;
+    border: 1px dotted hsl(222,61%,61%);
+}
+
+#main,#navigation{
+    width:61%;
+}
+
+#navigation {
+    text-align:center;
+}
+
+.template {
+    display:none;
+}
+
+.clickable {
+    cursor:pointer;
+}
+
+.navi-item {
+    display:inline-block;
+    border:1px solid hsl(222,61%,61%);
+    width:6em;
+    text-align:center;
+    cursor:pointer;
+    margin:1px 1px 1px 1px;
+}
+
+.navi-item-active {
+    border:1px solid hsl(222,61%,84%);
+}
+
+
+.clickabke {
+    cursor:pointer;
+}

@@ -3,12 +3,30 @@
     <head>
         <meta charset="utf-8"</meta>
         <title>options</title>
-        <!-- <link rel="stylesheet" href="options.css"></link> -->
+        <link rel="stylesheet" href="options.css"></link>
         <script src="options.js" type="text/javascript"></script> 
     </head>
     <body>
-        <ul>
-            <li ng-repeat='navi in navis'>{{navi}}</li>
-        </ul>
+        <div id="main">
+            <div id="navigation">    
+                <div class='navi-item' ng-class='{"navi-item-active":navi.active}' ng-repeat='navi in navis' ng-mouseenter='navi.active=true' ng-mouseleave='navi.active=false'>
+                    <span>{{navi.name}}</span>
+                </div>
+            </div>
+            <div id="stage">
+                <div id='servers-stage' class='template'>
+                    <div ng-repeat='server in servers'>
+                        <select>
+                            <option ng-repeat='type in types' ng-value='type' ng-selected='type == server.type'>{{type}}</option>
+                        </select>
+                        <span>
+                            <input type='text' ng-required='ip == ""' name='ip'></input>:<input type='text' ng-required='port == ""' name='port'></input>
+                        <text class='clickable'>+</text>
+                        <text class='clickable'>-</text>
+                        </span>
+                    </div>
+                <div>
+            </div>
+        </div>
     </body>
 </html>
