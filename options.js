@@ -34,13 +34,28 @@
                         scope.switchyd = switchyd;
                         scope.active = navi.active;
                         scope.append = function(item){
-                            if( "$$hashKey" in item){
+                            if( "$$hashKey" in item ){
                                 item = angular.copy(item);
                                 delete item["$$hashKey"];
                             }
                             scope.switchyd.config.servers.push(item);
                         };
-                        
+                        var expand =  function(source){
+                            var result = [];
+                            for(var key in source){
+                                var child = expand(source[key]);
+                                if( child.length === 0 ){
+                                    result.push([key]);
+                                    continue;
+                                }
+            
+                                child.forEach(function(item){
+                                    result.push([].concat(key,item));
+                                });
+                            }
+                            return result;
+                        };
+                        scope.expand=expand;
                         navi.loaded = true;
                         injector.get("$compile")(document.querySelector("#"+navi.name))(scope);
                     }
@@ -52,10 +67,7 @@
             scope.navis[0].active = true;
             scope.$emit("active-changed");
             
-            ["#navigation"].reduce(function(compile,node){
-                compile(document.querySelector(node))(scope);
-                return compile;
-            },injector.get("$compile"));
+            injector.get("$compile")(document.querySelector("#navigation"))(scope);            
             
             scope.$apply();
         });
