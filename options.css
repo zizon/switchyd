@@ -29,10 +29,14 @@ div {
     margin:1px 1px 1px 1px;
 }
 
+
+#servers-stage ,input{
+    text-align:center;
+}
+
 .navi-item-active {
     border:1px solid hsl(222,61%,84%);
 }
-
 
 .clickabke {
     cursor:pointer;

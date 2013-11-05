@@ -14,15 +14,15 @@
                 </div>
             </div>
             <div id="stage">
-                <div id='servers-stage' class='template'>
-                    <div ng-repeat='server in servers'>
-                        <select>
-                            <option ng-repeat='type in types' ng-value='type' ng-selected='type == server.type'>{{type}}</option>
+                <div id='servers-stage'>
+                    <div ng-repeat='server in servers' class='center'>
+                        <select ng-model='server.type'>
+                            <option ng-repeat='type in ["SOCKS5","PROXY"]'>{{type}}</option>
                         </select>
                         <span>
-                            <input type='text' ng-required='ip == ""' name='ip'></input>:<input type='text' ng-required='port == ""' name='port'></input>
-                        <text class='clickable'>+</text>
-                        <text class='clickable'>-</text>
+                            <input type='text' ng-model='server.ip'></input>:<input type='text' ng-model='server.port'></input>
+                            <text class='clickable' ng-click='append(servers[$index])'>+</text>
+                            <text class='clickable' ng-click='servers.splice($index,1)'>-</text>
                         </span>
                     </div>
                 <div>
