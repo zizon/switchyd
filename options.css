@@ -12,10 +12,6 @@ div {
     text-align:center;
 }
 
-.template {
-    display:none;
-}
-
 .clickable {
     cursor:pointer;
 }
@@ -35,8 +31,4 @@ div {
 
 .navi-item-active {
     border:1px solid hsl(222,61%,84%);
-}
-
-.clickabke {
-    cursor:pointer;
 }
