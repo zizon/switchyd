@@ -43,6 +43,7 @@
                         };
                         
                         switch(navi.name){
+                            case "servers":
                             case "rules":
                                 scope.remove = function(name){
                                     delete scope.switchyd.config.rules[name];
@@ -93,21 +94,22 @@
                                         return;
                                     }
                                     
-                                    build_urls();
+                                    //build_urls();
+                                    console.log(scope.urls);
                                 });
-                                
+                                /*
                                 scope.$watchCollection("urls",function(values){
-                                    console.log(scope.tracer);
-                                    var switchyd = scope.switchyd;
                                     var tracer = switchyd.tracer(scope.tracer);
-                                    values.forEach(function(url){
+                                    scope.urls = values;
+                                    scope.urls.forEach(function(url){
                                         tracer.track(url);
                                     });
-
+                                    
+                                    console.log(scope.urls);
                                     switchyd.config.tracers[scope.tracer] = switchyd.optimize(switchyd.compile(tracer));
                                     tracer.reset();
                                 });
-                                
+                                */
                                 scope.insertURL = function(index){
                                     scope.urls.splice(index,scope.urls[index],"new-url-" + Date.now());
                                     adjust_urls();
@@ -122,6 +124,7 @@
                                     
                         navi.loaded = true;
                         injector.get("$compile")(document.querySelector("#"+navi.name))(scope);
+                        scope.$apply();
                     }
                     
                      navi.scope.active = navi.active;
@@ -139,8 +142,7 @@
             
             scope.$emit("active-changed");
             
-            injector.get("$compile")(document.querySelector("#navigation"))(scope);            
-            
+            injector.get("$compile")(document.querySelector("#navigation"))(scope);
             scope.$apply();
         });
     });
