@@ -33,29 +33,48 @@
                         var scope = navi.scope = injector.get("$rootScope").$new(true);
                         scope.switchyd = switchyd;
                         scope.active = navi.active;
-                        scope.append = function(item){
-                            if( "$$hashKey" in item ){
+                        scope.insert = function(item,index,array){
+                            if( !angular.isString(item) && "$$hashKey" in item ){
                                 item = angular.copy(item);
                                 delete item["$$hashKey"];
                             }
-                            scope.switchyd.config.servers.push(item);
-                        };
-                        var expand =  function(source){
-                            var result = [];
-                            for(var key in source){
-                                var child = expand(source[key]);
-                                if( child.length === 0 ){
-                                    result.push([key]);
-                                    continue;
-                                }
-            
-                                child.forEach(function(item){
-                                    result.push([].concat(key,item));
-                                });
+                            
+                            array.splice(index,array[index],item);
+                        };                   
+                        
+                        scope.urls = [];
+                        scope.expand = function(source){
+                            if( scope.urls.length !== 0 ){
+                                return scope.urls;
                             }
-                            return result;
-                        };
-                        scope.expand=expand;
+                            
+                            var expand =  function(source){
+                                var result = [];
+                                for(var key in source){
+                                    var child = expand(source[key]);
+                                    if( child.length === 0 ){
+                                        result.push([key]);
+                                        continue;
+                                    }
+                
+                                    child.forEach(function(item){
+                                        result.push([].concat(key,item));
+                                    });
+                                }
+                                return result;
+                            };
+                            
+                            scope.urls = expand(source).map(function(item){
+                                item.reverse();
+                                return item.join(".")
+                            });
+                            
+                            if( scope.urls.length === 0 ){
+                                scope.urls.push("");
+                            }
+                            return scope.urls;
+                        }
+                                    
                         navi.loaded = true;
                         injector.get("$compile")(document.querySelector("#"+navi.name))(scope);
                     }

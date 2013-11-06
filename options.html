@@ -14,24 +14,31 @@
                 </div>
             </div>
             <div id="stage">
-                <div id='servers' ng-show='active'>
+                <div id='servers' ng-show='active' class='center'>
                     <div ng-repeat='server in switchyd.config.servers'>
                         <select ng-model='server.type'>
                             <option ng-repeat='type in ["SOCKS5","PROXY"]'>{{type}}</option>
                         </select>
                         <span>
                             <input type='text' ng-model='server.ip'></input>:<input type='text' ng-model='server.port'></input>
-                            <text class='clickable' ng-click='append(switchyd.config.servers[$index])'>+</text>
+                            <text class='clickable' ng-click='insert(switchyd.config.servers[$index],$index,switchyd.config.servers)'>+</text>
                             <text class='clickable' ng-click='switchyd.config.servers.splice($index,1)'>-</text>
                         </span>
                     </div>
                 </div>
-                <div id='proxy-list' ng-show='active'>
-                    <ul>
-                        <li ng-repeat='row in expand(switchyd.config.tracers.proxy)'>{{row}}</li>
-                    </ul>  
+                <div id='proxy-list' ng-show='active' class='center'>
+                    <div ng-repeat='row in expand(switchyd.config.tracers.proxy)'>
+                        <input class='url-box' type='text' value='{{row}}'></input>
+                        <text class='clickable' ng-click='insert("",$index,urls)'>+</text>
+                        <text class='clickable' ng-click='urls.splice($index,1)'>-</text>
+                    </div> 
                 </div>
-                <div id='white-list' ng-show='active'>
+                <div id='white-list' ng-show='active' class='center'>
+                    <div ng-repeat='row in expand(switchyd.config.tracers.do_not_track)'>
+                        <input class='url-box' type='text' value='{{row}}'></input>
+                        <text class='clickable' ng-click='insert("",$index,urls)'>+</text>
+                        <text class='clickable' ng-click='urls.splice($index,1)'>-</text>
+                    </div> 
                 </div>
             </div>
         </div>

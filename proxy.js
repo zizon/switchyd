@@ -132,11 +132,11 @@ var switchyd = {
             for(var part in compiled){
                 number_of_children++;
                 // recrusive optimize
-                mergable = mergable && no_children(compiled[part] = this.optimize(compiled[part],depth+1) );
+                mergable = mergable && no_children(compiled[part] = this.optimize(compiled[part],depth+1));
             }
             
             // see if mergable
-            if( mergable && number_of_children > 1 && depth > 2 ){
+            if( "*" in compiled ||( mergable && number_of_children > 1 && depth > 2 )){
                 for(var child in compiled){
                     delete compiled[child];
                 }
