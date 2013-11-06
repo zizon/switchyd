@@ -27,18 +27,25 @@
                     </div>
                 </div>
                 <div id='proxy-list' ng-show='active' class='center'>
-                    <div ng-repeat='row in expand(switchyd.config.tracers.proxy)'>
+                    <div ng-repeat='row in expand()'>
                         <input class='url-box' type='text' value='{{row}}'></input>
                         <text class='clickable' ng-click='insert("",$index,urls)'>+</text>
                         <text class='clickable' ng-click='urls.splice($index,1)'>-</text>
                     </div> 
                 </div>
                 <div id='white-list' ng-show='active' class='center'>
-                    <div ng-repeat='row in expand(switchyd.config.tracers.do_not_track)'>
+                    <div ng-repeat='row in expand()'>
                         <input class='url-box' type='text' value='{{row}}'></input>
                         <text class='clickable' ng-click='insert("",$index,urls)'>+</text>
                         <text class='clickable' ng-click='urls.splice($index,1)'>-</text>
                     </div> 
+                </div>
+                <div id="rules" ng-show='active' class='center'>
+                    <div ng-repeat='(name,count) in switchyd.config.rules'>
+                        <input class='url-box' type='text' value='{{name}}'></input><span readonly> meet for {{count}} times</span>
+                        <text class='clickable' ng-click='switchyd.config.rules["new-rule"] = 0'>+</text>
+                        <text class='clickable' ng-click='remove(name)'>-</text>
+                    </div>
                 </div>
             </div>
         </div>

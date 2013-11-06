@@ -42,6 +42,12 @@ var switchyd = {
         tracers:{
             proxy:{},
             do_not_track:{}
+        },
+        
+        rules:{
+            "net::ERR_CONNECTION_RESET":0,
+            "net::ERR_CONNECTION_TIMED_OUT":0,
+            "net::ERR_SSL_PROTOCOL_ERROR":0
         }
     },
     
@@ -50,7 +56,12 @@ var switchyd = {
             console.log("load config");
             var config = localStorage.getItem("switchyd.config");
             if( config ){
-                switchyd.config = JSON.parse(config);
+                var loaded = JSON.parse(config);
+                // patch needed
+                if( !("rules" in loaded) ){
+                    loaded.rules = switchyd.config.rules;
+                }
+                switchyd.config = loaded;
             }            
         },            
 
@@ -132,7 +143,8 @@ var switchyd = {
             for(var part in compiled){
                 number_of_children++;
                 // recrusive optimize
-                mergable = mergable && no_children(compiled[part] = this.optimize(compiled[part],depth+1));
+                compiled[part] = this.optimize(compiled[part],depth+1);
+                mergable = mergable && no_children(compiled[part]);
             }
             
             // see if mergable
@@ -284,17 +296,16 @@ var switchyd = {
             console.error(details);
             
             // inspect potential reset request
-            switch(details.error){
-                case "net::ERR_CONNECTION_RESET":
-                case "net::ERR_CONNECTION_TIMED_OUT":
-                case "net::ERR_SSL_PROTOCOL_ERROR":
-                    var start = details.url.indexOf("://") + 3;
-                    var url = details.url.substr(start,details.url.indexOf("/",start) - start);
-                    if( !switchyd.match(switchyd.config.tracers.do_not_track,url) ){
-                        switchyd.tracer("proxy").track(url);
-                        switchyd.async.enqueue();
-                    }
-                    break;
+            if( details.error in switchyd.config.rules ){
+                // track hits
+                ++switchyd.config.rules[details.error];
+                
+                var start = details.url.indexOf("://") + 3;
+                var url = details.url.substr(start,details.url.indexOf("/",start) - start);
+                if( !switchyd.match(switchyd.config.tracers.do_not_track,url) ){
+                    switchyd.tracer("proxy").track(url);
+                    switchyd.async.enqueue();
+                }
             }
         },{"urls":["<all_urls>"]});
         

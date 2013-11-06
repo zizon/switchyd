@@ -19,7 +19,7 @@
                 
                 scope.$emit("active-changed");
             };
-            scope.navis =["servers","proxy-list","white-list"].map(function(name){
+            scope.navis =["servers","proxy-list","white-list","rules"].map(function(name){
                 return {
                     name:name,
                     active:false,
@@ -29,7 +29,7 @@
             
             scope.$on("active-changed",function(event){
                 scope.navis.forEach(function(navi){
-                     if(!navi.loaded){
+                    if(!navi.loaded){
                         var scope = navi.scope = injector.get("$rootScope").$new(true);
                         scope.switchyd = switchyd;
                         scope.active = navi.active;
@@ -42,37 +42,53 @@
                             array.splice(index,array[index],item);
                         };                   
                         
-                        scope.urls = [];
-                        scope.expand = function(source){
-                            if( scope.urls.length !== 0 ){
-                                return scope.urls;
-                            }
-                            
-                            var expand =  function(source){
-                                var result = [];
-                                for(var key in source){
-                                    var child = expand(source[key]);
-                                    if( child.length === 0 ){
-                                        result.push([key]);
-                                        continue;
-                                    }
-                
-                                    child.forEach(function(item){
-                                        result.push([].concat(key,item));
-                                    });
+                        switch(navi.name){
+                            case "rules":
+                                scope.remove = function(name){
+                                    delete scope.switchyd.config.rules[name];
                                 }
-                                return result;
-                            };
-                            
-                            scope.urls = expand(source).map(function(item){
-                                item.reverse();
-                                return item.join(".")
-                            });
-                            
-                            if( scope.urls.length === 0 ){
-                                scope.urls.push("");
-                            }
-                            return scope.urls;
+                                break;
+                            case "proxy-list":
+                                scope.tracer = "proxy";
+                            case "white-list":
+                                if(!("tracer" in scope)){
+                                    scope.tracer = "do_not_track";
+                                }
+                                
+                                scope.urls = [];
+                                scope.expand = function(){
+                                    if( scope.urls.length !== 0 ){
+                                        return scope.urls;
+                                    }
+                                    
+                                    var expand =  function(source){
+                                        var result = [];
+                                        for(var key in source){
+                                            var child = expand(source[key]);
+                                            if( child.length === 0 ){
+                                                result.push([key]);
+                                                continue;
+                                            }
+                        
+                                            child.forEach(function(item){
+                                                result.push([].concat(key,item));
+                                            });
+                                        }
+                                        return result;
+                                    };
+                                    
+                                    scope.urls = expand(scope.switchyd.config.tracers[scope.tracer]).map(function(item){
+                                        item.reverse();
+                                        return item.join(".")
+                                    });
+                                    
+                                    if( scope.urls.length === 0 ){
+                                        scope.urls.push("NONE");
+                                        return scope.urls;
+                                    }
+                                    return scope.urls = scope.urls.filter(function(url){ return url !== "NONE" });
+                                }
+                                break; 
                         }
                                     
                         navi.loaded = true;
