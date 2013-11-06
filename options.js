@@ -10,7 +10,7 @@
         chrome.runtime.getBackgroundPage(function(app){
             var switchyd = app.switchyd;
             var injector = angular.injector(['ng']);
-            
+            injector.get("$animate").enabled(true);
             var scope = injector.get("$rootScope").$new(true);
             scope.activate = function(index){
                 scope.navis.forEach(function(navi,i){
@@ -40,7 +40,7 @@
                             }
                             
                             array.splice(index,array[index],item);
-                        };                   
+                        };
                         
                         switch(navi.name){
                             case "rules":
@@ -55,12 +55,15 @@
                                     scope.tracer = "do_not_track";
                                 }
                                 
-                                scope.urls = [];
-                                scope.expand = function(){
-                                    if( scope.urls.length !== 0 ){
-                                        return scope.urls;
+                                var adjust_urls = function(){
+                                    if(scope.urls.length === 0){
+                                        scope.urls.push("NONE");
+                                    }else if(scope.urls.length > 1){
+                                        scope.urls = scope.urls.filter(function(url){return url != "NONE"});
                                     }
-                                    
+                                }
+                                
+                                var build_urls = function(){
                                     var expand =  function(source){
                                         var result = [];
                                         for(var key in source){
@@ -76,18 +79,44 @@
                                         }
                                         return result;
                                     };
-                                    
                                     scope.urls = expand(scope.switchyd.config.tracers[scope.tracer]).map(function(item){
-                                        item.reverse();
-                                        return item.join(".")
+                                            item.reverse();
+                                            return item.join(".")
                                     });
                                     
-                                    if( scope.urls.length === 0 ){
-                                        scope.urls.push("NONE");
-                                        return scope.urls;
-                                    }
-                                    return scope.urls = scope.urls.filter(function(url){ return url !== "NONE" });
+                                    adjust_urls();
                                 }
+                                build_urls();
+                                
+                                scope.$watch("active",function(value){
+                                    if( !value ){
+                                        return;
+                                    }
+                                    
+                                    build_urls();
+                                });
+                                
+                                scope.$watchCollection("urls",function(values){
+                                    console.log(scope.tracer);
+                                    var switchyd = scope.switchyd;
+                                    var tracer = switchyd.tracer(scope.tracer);
+                                    values.forEach(function(url){
+                                        tracer.track(url);
+                                    });
+
+                                    switchyd.config.tracers[scope.tracer] = switchyd.optimize(switchyd.compile(tracer));
+                                    tracer.reset();
+                                });
+                                
+                                scope.insertURL = function(index){
+                                    scope.urls.splice(index,scope.urls[index],"new-url-" + Date.now());
+                                    adjust_urls();
+                                };
+                                
+                                scope.removeURL = function(index){
+                                    scope.urls.splice(index,1);
+                                    adjust_urls();
+                                };
                                 break; 
                         }
                                     
@@ -100,6 +129,14 @@
             });
             
             scope.navis[0].active = true;
+            scope.sync = function(){
+                switchyd.async.enqueue();
+                scope.message = "sync...";
+                injector.get("$timeout")(function(){
+                    scope.message = '';
+                },2000);
+            };
+            
             scope.$emit("active-changed");
             
             injector.get("$compile")(document.querySelector("#navigation"))(scope);            

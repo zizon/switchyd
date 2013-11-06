@@ -8,10 +8,12 @@
     </head>
     <body>
         <div id="main">
-            <div id="navigation">    
+            <div id="navigation">
+                <span id='message' ng-show='message'>{{message}}</span>
                 <div class='navi-item'  ng-repeat='navi in navis' ng-class='{"navi-item-active":navi.active}'  ng-mouseover='activate($index)'>
                     <span>{{navi.name}}</span>
                 </div>
+                <input text='text' ng-click='sync()' readonly value='sync' class='button'></input>
             </div>
             <div id="stage">
                 <div id='servers' ng-show='active' class='center'>
@@ -27,17 +29,17 @@
                     </div>
                 </div>
                 <div id='proxy-list' ng-show='active' class='center'>
-                    <div ng-repeat='row in expand()'>
-                        <input class='url-box' type='text' value='{{row}}'></input>
-                        <text class='clickable' ng-click='insert("",$index,urls)'>+</text>
-                        <text class='clickable' ng-click='urls.splice($index,1)'>-</text>
+                    <div ng-repeat='url in urls'>
+                        <input class='url-box' type='text' ng-model='url'></input>
+                        <text class='clickable' ng-click='insertURL($index)'>+</text>
+                        <text class='clickable' ng-click='removeURL($index)'>-</text>
                     </div> 
                 </div>
                 <div id='white-list' ng-show='active' class='center'>
-                    <div ng-repeat='row in expand()'>
-                        <input class='url-box' type='text' value='{{row}}'></input>
-                        <text class='clickable' ng-click='insert("",$index,urls)'>+</text>
-                        <text class='clickable' ng-click='urls.splice($index,1)'>-</text>
+                    <div ng-repeat='url in urls'>
+                        <input class='url-box' type='text' ng-model='url'></input>
+                        <text class='clickable' ng-click='insertURL($index)'>+</text>
+                        <text class='clickable' ng-click='removeURL($index)'>-</text>
                     </div> 
                 </div>
                 <div id="rules" ng-show='active' class='center'>
