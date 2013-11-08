@@ -40,15 +40,71 @@
                                 delete item["$$hashKey"];
                             }
                             
-                            array.splice(index,array[index],item);
+                            array.splice(index+1,0,item);
+                        };
+                        
+                        scope.shadow = function(name,value){
+                            scope[name+"-shadow"] = value;
+                            scope[name] = angular.copy(value);
+                        };
+                        
+                        scope.change = function(name,value,index){
+                            if(angular.isArray(scope[name+"-shadow"])){
+                                scope[name+"-shadow"][index] = value;
+                            }else{
+                                scope[name+"-shadow"] = value;
+                            }
+                        };
+                        
+                        scope.get_shadow = function(name){
+                            return scope[name+"-shadow"];
                         };
                         
                         switch(navi.name){
                             case "servers":
                             case "rules":
-                                scope.remove = function(name){
-                                    delete scope.switchyd.config.rules[name];
+                                scope.build = function(){
+                                    var result = [];
+                                    for(var key in scope.switchyd.config.rules){
+                                        result.push({
+                                            name:key,
+                                            count:scope.switchyd.config.rules[key]
+                                        });
+                                    }
+                                    
+                                    if(result.length < 1){
+                                        result.push({name:"NONE",count:0});
+                                    }
+                                    return result;
+                                };
+                                
+                                scope.shadow("rules",scope.build());
+                                scope.add_rules = function(index,value){
+                                    scope.insert(value,index,scope.rules);
+                                    scope.insert(value,index,scope.get_shadow("rules"));
+                                };
+                                
+                                scope.remove_rules = function(index){
+                                    scope.rules.splice(index,1);
+                                    scope.get_shadow("rules").splice(index,1);
+                                    if(scope.rules.length < 1){
+                                        scope.rules.push({name:"NONE",count:0});
+                                        scope.get_shadow("rules").push({name:"NONE",count:0});
+                                    }
                                 }
+                                
+                                scope.$watch("active",function(){
+                                    scope.shadow("rules",scope.get_shadow("rules"));
+                                });
+                                
+                                navi.sync = function(){
+                                    scope.switchyd.config.rules = {};
+                                    scope.get_shadow("rules").forEach(function(rule){
+                                        if(rule.name != "NONE"){
+                                            scope.switchyd.config.rules[rule.name]=rule.count;
+                                        }
+                                    });
+                                };
                                 break;
                             case "proxy-list":
                                 scope.tracer = "proxy";
@@ -68,24 +124,11 @@
                                 }
                                 
                                 scope.config_tracer = adjust_urls(scope.switchyd.config.tracers[scope.tracer]);
-                              
-                                var scope_shader = function(name,value){
-                                    scope[name+"-shader"] = value;
-                                    scope[name] = angular.copy(value);
-                                };
                                 
-                                var get_shader = function(name){
-                                    return scope[name+"-shader"]
-                                };
-                                
-                                var sync_shader = function(name){
-                                    scope[name] = angular.copy(scope[name+"-shader"]);
-                                };
-            
                                 navi.sync = function(){        
                                     var switchyd = scope.switchyd;                                
                                     var tracer = switchyd.tracer(scope.tracer);
-                                    get_shader("urls").filter(function(url){
+                                    scope.get_shadow("urls").filter(function(url){
                                         return url != 'NONE';
                                     }).forEach(function(url){
                                         return tracer.track(url);
@@ -94,31 +137,31 @@
                                     scope.config_tracer = scope.switchyd.config.tracers[scope.tracer] = adjust_urls(switchyd.optimize(switchyd.compile(tracer)));
                                 };
                                 
-                                scope_shader("urls",switchyd.expand(scope.config_tracer));
- 
+                                scope.shadow("urls",adjust_urls(switchyd.expand(scope.config_tracer)));
+                                scope.$watch("config_tracer",function(){
+                                    scope.shadow("urls",adjust_urls(switchyd.expand(scope.config_tracer)));
+                                });
+                                
                                 scope.editing = function(index,url){
-                                    get_shader("urls")[index] = url;
+                                    scope.get_shadow("urls")[index] = url;
                                 };
                                 
                                 scope.insertURL = function(index){
                                     scope.urls.splice(index+1,0,"new-url-" + Date.now());
                                     scope.urls = adjust_urls(scope.urls);
-                                    scope_shader("urls",scope.urls);
+                                    scope.shadow("urls",scope.urls);
                                 };
                                 
                                 scope.removeURL = function(index){
                                     scope.urls.splice(index,1)
                                     scope.urls = adjust_urls(scope.urls);
-                                    scope_shader("urls",scope.urls);
+                                    scope.shadow("urls",scope.urls);
                                 };
                                 
                                 scope.$watch("active",function(){
-                                    sync_shader("urls");
+                                    scope.shadow("urls",scope.get_shadow("urls"));
                                 });
-                                
-                                scope.$watch("config_tracer",function(){
-                                    scope_shader("urls",adjust_urls(switchyd.expand(scope.config_tracer)));
-                                });
+
                                 break; 
                         }
                                     
