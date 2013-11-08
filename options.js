@@ -23,7 +23,8 @@
                 return {
                     name:name,
                     active:false,
-                    loaded:false
+                    loaded:false,
+                    sync:angular.noop
                 }
             });
             
@@ -56,12 +57,14 @@
                                     scope.tracer = "do_not_track";
                                 }
                                 
-                                var adjust_urls = function(){
-                                    if(scope.urls.length === 0){
-                                        scope.urls.push("NONE");
-                                    }else if(scope.urls.length > 1){
-                                        scope.urls = scope.urls.filter(function(url){return url != "NONE"});
+                                var adjust_urls = function(urls){
+                                    if(urls.length === 0){
+                                        urls.push("NONE");
+                                    }else if(urls.length > 1){
+                                        urls = urls.filter(function(url){return url != "NONE"});
                                     }
+                                    
+                                    return urls;
                                 }
                                 
                                 var build_urls = function(){
@@ -80,45 +83,59 @@
                                         }
                                         return result;
                                     };
-                                    scope.urls = expand(scope.switchyd.config.tracers[scope.tracer]).map(function(item){
+                                    
+                                    return adjust_urls(
+                                        expand(scope.switchyd.config.tracers[scope.tracer]).map(function(item){
                                             item.reverse();
                                             return item.join(".")
-                                    });
-                                    
-                                    adjust_urls();
+                                        })
+                                    );
                                 }
-                                build_urls();
+                                                            
+                                var scope_shader = function(name,value){
+                                    scope[name+"-shader"] = value;
+                                    scope[name] = angular.copy(value);
+                                };
                                 
-                                scope.$watch("active",function(value){
-                                    if( !value ){
-                                        return;
-                                    }
-                                    
-                                    //build_urls();
-                                    console.log(scope.urls);
-                                });
-                                /*
-                                scope.$watchCollection("urls",function(values){
-                                    var tracer = switchyd.tracer(scope.tracer);
-                                    scope.urls = values;
-                                    scope.urls.forEach(function(url){
+                                var get_shader = function(name){
+                                    return scope[name+"-shader"]
+                                };
+                                
+                                var sync_shader = function(name){
+                                    scope[name] = angular.copy(scope[name+"-shader"]);
+                                };
+            
+                                scope.sync = function(){             
+                                    get_shader("urls").filter(function(url){
+                                        return url != 'NONE';
+                                    }).reduce(function(tracer,url){
                                         tracer.track(url);
-                                    });
-                                    
-                                    console.log(scope.urls);
-                                    switchyd.config.tracers[scope.tracer] = switchyd.optimize(switchyd.compile(tracer));
-                                    tracer.reset();
-                                });
-                                */
+                                        return tracer;
+                                    },scope.switchyd.config.tracers[scope.tracer]);
+                                };
+     
+                                scope_shader("urls",build_urls());
+ 
+                                scope.editing = function(index,url){
+                                    get_shader("urls")[index] = url;
+                                };
+                                
                                 scope.insertURL = function(index){
-                                    scope.urls.splice(index,scope.urls[index],"new-url-" + Date.now());
-                                    adjust_urls();
+                                    scope.urls.splice(index+1,0,"new-url-" + Date.now());
+                                    scope.urls = adjust_urls(scope.urls);
+                                    scope_shader("urls",scope.urls);
                                 };
                                 
                                 scope.removeURL = function(index){
-                                    scope.urls.splice(index,1);
-                                    adjust_urls();
+                                    scope.urls.splice(index,1)
+                                    scope.urls = adjust_urls(scope.urls);
+                                    scope_shader("urls",scope.urls);
                                 };
+                                
+                                scope.$watch("active",function(){
+                                    sync_shader("urls");
+                                    //console.log(scope.urls);
+                                });
                                 break; 
                         }
                                     
@@ -133,6 +150,10 @@
             
             scope.navis[0].active = true;
             scope.sync = function(){
+                scope.navis.forEach(function(navi){
+                    navi.sync();
+                });
+                
                 switchyd.async.enqueue();
                 scope.message = "sync...";
                 injector.get("$timeout")(function(){
