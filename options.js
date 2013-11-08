@@ -57,8 +57,6 @@
                                     scope.tracer = "do_not_track";
                                 }
                                 
-                                scope.config_tracer = scope.switchyd.config.tracers[scope.tracer];
-                                
                                 var adjust_urls = function(urls){
                                     if(urls.length === 0){
                                         urls.push("NONE");
@@ -68,7 +66,9 @@
                                     
                                     return urls;
                                 }
-                                                               
+                                
+                                scope.config_tracer = adjust_urls(scope.switchyd.config.tracers[scope.tracer]);
+                              
                                 var scope_shader = function(name,value){
                                     scope[name+"-shader"] = value;
                                     scope[name] = angular.copy(value);
@@ -91,7 +91,7 @@
                                         return tracer.track(url);
                                     });
                                     
-                                    scope.config_tracer = scope.switchyd.config.tracers[scope.tracer] = switchyd.optimize(switchyd.compile(tracer));
+                                    scope.config_tracer = scope.switchyd.config.tracers[scope.tracer] = adjust_urls(switchyd.optimize(switchyd.compile(tracer)));
                                 };
                                 
                                 scope_shader("urls",switchyd.expand(scope.config_tracer));
@@ -117,7 +117,7 @@
                                 });
                                 
                                 scope.$watch("config_tracer",function(){
-                                    scope_shader("urls",switchyd.expand(scope.config_tracer));
+                                    scope_shader("urls",adjust_urls(switchyd.expand(scope.config_tracer)));
                                 });
                                 break; 
                         }
