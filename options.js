@@ -114,11 +114,9 @@
                                 
                                 scope.$watch("active",function(){
                                     sync_shader("urls");
-                                    console.log(scope.config_tracer);
                                 });
                                 
                                 scope.$watch("config_tracer",function(){
-                                    console.log("change");
                                     scope_shader("urls",switchyd.expand(scope.config_tracer));
                                 });
                                 break; 
