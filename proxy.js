@@ -96,6 +96,7 @@ var switchyd = {
                 
                 reset:function(){
                     this.urls = {};
+                    return this;
                 }
             };
         };
@@ -168,7 +169,44 @@ var switchyd = {
             this.async.merge(target,this.config.tracers[tracer]);
             this.optimize(this.config.tracers[tracer]);
         }
+        
+        // trim do_not_track from proxy
+        this.config.tracers.proxy = this.optimize(
+            this.compile(
+                this.expand(this.config.tracers.proxy).filter(function(url){
+                        return !switchyd.match(switchyd.config.tracers.do_not_track,url);
+                    }).reduce(function(tracer,url){
+                        return tracer.track(url);
+                    },this.tracer("filter").reset())
+            )
+        );
     },
+    
+    expand:(function(){
+        var _expand = function(source){
+            var result = [];
+            for(var key in source){
+                var child = _expand(source[key]);
+                if( child.length === 0){
+                    result.push([key]);
+                    continue;
+                }
+                
+                child.forEach(function(item){
+                    result.push([].concat(key,item));
+                });
+            }
+            
+            return result;
+        }
+        
+        return function(source){
+            return _expand(source).map(function(item){
+                item.reverse();
+                return item.join(".");
+            });
+        };
+    })(),
 
     match:function(compiled,url){
         return url.split(".").reduceRight(function(context,part){
@@ -314,3 +352,4 @@ var switchyd = {
 };
 
 switchyd.plug();
+

@@ -57,6 +57,8 @@
                                     scope.tracer = "do_not_track";
                                 }
                                 
+                                scope.config_tracer = scope.switchyd.config.tracers[scope.tracer];
+                                
                                 var adjust_urls = function(urls){
                                     if(urls.length === 0){
                                         urls.push("NONE");
@@ -66,32 +68,7 @@
                                     
                                     return urls;
                                 }
-                                
-                                var build_urls = function(){
-                                    var expand =  function(source){
-                                        var result = [];
-                                        for(var key in source){
-                                            var child = expand(source[key]);
-                                            if( child.length === 0 ){
-                                                result.push([key]);
-                                                continue;
-                                            }
-                        
-                                            child.forEach(function(item){
-                                                result.push([].concat(key,item));
-                                            });
-                                        }
-                                        return result;
-                                    };
-                                    
-                                    return adjust_urls(
-                                        expand(scope.switchyd.config.tracers[scope.tracer]).map(function(item){
-                                            item.reverse();
-                                            return item.join(".")
-                                        })
-                                    );
-                                }
-                                                            
+                                                               
                                 var scope_shader = function(name,value){
                                     scope[name+"-shader"] = value;
                                     scope[name] = angular.copy(value);
@@ -105,16 +82,19 @@
                                     scope[name] = angular.copy(scope[name+"-shader"]);
                                 };
             
-                                scope.sync = function(){             
+                                navi.sync = function(){        
+                                    var switchyd = scope.switchyd;                                
+                                    var tracer = switchyd.tracer(scope.tracer);
                                     get_shader("urls").filter(function(url){
                                         return url != 'NONE';
-                                    }).reduce(function(tracer,url){
-                                        tracer.track(url);
-                                        return tracer;
-                                    },scope.switchyd.config.tracers[scope.tracer]);
+                                    }).forEach(function(url){
+                                        return tracer.track(url);
+                                    });
+                                    
+                                    scope.config_tracer = scope.switchyd.config.tracers[scope.tracer] = switchyd.optimize(switchyd.compile(tracer));
                                 };
-     
-                                scope_shader("urls",build_urls());
+                                
+                                scope_shader("urls",switchyd.expand(scope.config_tracer));
  
                                 scope.editing = function(index,url){
                                     get_shader("urls")[index] = url;
@@ -134,7 +114,12 @@
                                 
                                 scope.$watch("active",function(){
                                     sync_shader("urls");
-                                    //console.log(scope.urls);
+                                    console.log(scope.config_tracer);
+                                });
+                                
+                                scope.$watch("config_tracer",function(){
+                                    console.log("change");
+                                    scope_shader("urls",switchyd.expand(scope.config_tracer));
                                 });
                                 break; 
                         }
