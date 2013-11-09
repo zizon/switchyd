@@ -220,41 +220,18 @@ var switchyd = {
     },
     
     async:{
-        work:0,
-        
         merge:function(from,to){
             for( var key in from ){
                 this.merge(from[key],key in to ? to[key] : to[key]={});
             }
         },
-        
-        callback:function(alarm){
-            console.log("receive a event:"+alarm.name);        
-            switch(alarm.name){
-                case "async":
-                    chrome.alarms.clear("async");
-                    switchyd.async.dequeue();
-                    break;
-            }
-        },
-        
+         
         enqueue:function(){
-            // delay link work,
-            // avoid burst
-            if ( this.work++ === 0 ) {
-                if (!chrome.alarms.onAlarm.hasListener(this.callback)) {
-                    chrome.alarms.onAlarm.addListener(this.callback);
-                }
-                
-                chrome.alarms.create("async",{when:Date.now()});
-            }
+            // dequeue
+            this.dequeue();
         },
 
         dequeue:function(){
-            while (--this.work > 0) {
-                // pop
-            }
-            
             switchyd.build();
             switchyd.link();
             switchyd.sync.save();
