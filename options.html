@@ -30,23 +30,23 @@
                 </div>
                 <div id='proxy-list' ng-show='active' class='center'>
                     <div ng-repeat='url in urls'>
-                        <input class='url-box' type='text' ng-model='url' ng-change='change("urls",url,$index)'></input>
-                        <text class='clickable' ng-click='insertURL($index)'>+</text>
-                        <text class='clickable' ng-click='removeURL($index)'>-</text>
-                    </div> 
+                        <input class='url-box' type='text' ng-model='url.url' ng-change='urls[$index].url=url.url'></input>
+                        <text class='clickable' ng-click='insert(url,$index,urls)'>+</text>
+                        <text class='clickable' ng-click='remove($index,urls)'>-</text>
+                    </div>
                 </div>
                 <div id='white-list' ng-show='active' class='center'>
                     <div ng-repeat='url in urls'>
-                        <input class='url-box' type='text' ng-model='url' ng-change='change("urls",url,$index)'></input>
-                        <text class='clickable' ng-click='insertURL($index)'>+</text>
-                        <text class='clickable' ng-click='removeURL($index)'>-</text>
+                        <input class='url-box' type='text' ng-model='url.url' ng-change='urls[$index].url=url.url'></input>
+                        <text class='clickable' ng-click='insert(url,$index,urls)'>+</text>
+                        <text class='clickable' ng-click='remove($index,urls)'>-</text>
                     </div> 
                 </div>
                 <div id="rules" ng-show='active' class='center'>
                     <div ng-repeat='rule in rules'>
-                        <input class='url-box' type='text' ng-model='rule.name' ng-change='change("rules",rule,$index)'></input><span readonly> meet for {{rule.count}} times</span>
-                        <text class='clickable' ng-click='add_rules($index,rule)'>+</text>
-                        <text class='clickable' ng-click='remove_rules($index)'>-</text>
+                        <input class='url-box' type='text' ng-model='rule.rule.name' ng-change='rules[$index].rule.name = rule.rule.name'></input><span readonly> meet for {{rule.count}} times</span>
+                        <text class='clickable' ng-click='insert(rule,$index,rules)'>+</text>
+                        <text class='clickable' ng-click='remove($index,rules)'>-</text>
                     </div>
                 </div>
             </div>

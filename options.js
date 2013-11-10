@@ -42,66 +42,40 @@
                             
                             array.splice(index+1,0,item);
                         };
-                        
-                        scope.shadow = function(name,value){
-                            scope[name+"-shadow"] = value;
-                            scope[name] = angular.copy(value);
+                       
+                        scope.remove = function(index,array){
+                            if( array.length > 1 ){
+                                array.slice(index,1);
+                            } 
                         };
-                        
-                        scope.change = function(name,value,index){
-                            if(angular.isArray(scope[name+"-shadow"])){
-                                scope[name+"-shadow"][index] = value;
-                            }else{
-                                scope[name+"-shadow"] = value;
-                            }
-                        };
-                        
-                        scope.get_shadow = function(name){
-                            return scope[name+"-shadow"];
-                        };
-                        
+
                         switch(navi.name){
                             case "servers":
                             case "rules":
-                                scope.build = function(){
+                                var build_rules = function(){
                                     var result = [];
                                     for(var key in scope.switchyd.config.rules){
                                         result.push({
-                                            name:key,
-                                            count:scope.switchyd.config.rules[key]
+                                            rule:{
+                                                name:key,
+                                                count:scope.switchyd.config.rules[key]
+                                            }
                                         });
                                     }
                                     
                                     if(result.length < 1){
-                                        result.push({name:"NONE",count:0});
+                                        result.push({rule:{name:"NONE",count:0}});
                                     }
                                     return result;
                                 };
                                 
-                                scope.shadow("rules",scope.build());
-                                scope.add_rules = function(index,value){
-                                    scope.insert(value,index,scope.rules);
-                                    scope.insert(value,index,scope.get_shadow("rules"));
-                                };
-                                
-                                scope.remove_rules = function(index){
-                                    scope.rules.splice(index,1);
-                                    scope.get_shadow("rules").splice(index,1);
-                                    if(scope.rules.length < 1){
-                                        scope.rules.push({name:"NONE",count:0});
-                                        scope.get_shadow("rules").push({name:"NONE",count:0});
-                                    }
-                                }
-                                
-                                scope.$watch("active",function(){
-                                    scope.shadow("rules",scope.get_shadow("rules"));
-                                });
-                                
+                                scope.rules = build_rules();
+
                                 navi.sync = function(){
                                     scope.switchyd.config.rules = {};
-                                    scope.get_shadow("rules").forEach(function(rule){
-                                        if(rule.name != "NONE"){
-                                            scope.switchyd.config.rules[rule.name]=rule.count;
+                                    scope.rules.forEach(function(rule){
+                                        if( rule.rule.name != "NONE" ){
+                                            scope.switchyd.config.rules[rule.rule.name] = rule.rule.count;
                                         }
                                     });
                                 };
@@ -113,54 +87,30 @@
                                     scope.tracer = "do_not_track";
                                 }
                                 
-                                var adjust_urls = function(urls){
-                                    if(urls.length === 0){
+                                var build_urls = function(){
+                                    var urls = scope.switchyd.expand(scope.switchyd.config.tracers[scope.tracer]);
+                                    if( urls.length === 0 ){
                                         urls.push("NONE");
-                                    }else if(urls.length > 1){
+                                    }else{
                                         urls = urls.filter(function(url){return url != "NONE"});
                                     }
-                                    
-                                    return urls;
-                                }
-                                
-                                scope.config_tracer = adjust_urls(scope.switchyd.config.tracers[scope.tracer]);
-                                
+
+                                    return urls.map(function(url){ return {url:url}});
+                                };
+                                scope.urls = build_urls();
+
                                 navi.sync = function(){        
-                                    var switchyd = scope.switchyd;                                
-                                    var tracer = switchyd.tracer(scope.tracer);
-                                    scope.get_shadow("urls").filter(function(url){
-                                        return url != 'NONE';
-                                    }).forEach(function(url){
-                                        return tracer.track(url);
-                                    });
+                                    scope.switchyd.config.tracers[scope.tracer] = switchyd.optimize(scope.switchyd.compile(
+                                            scope.urls.reduce(function(tracer,url){
+                                                if( url.url != "NONE"){
+                                                    tracer.track(url.url);
+                                                }
+                                                return tracer;
+                                            },scope.switchyd.tracer(scope.tracer))
+                                    ));
                                     
-                                    scope.config_tracer = scope.switchyd.config.tracers[scope.tracer] = adjust_urls(switchyd.optimize(switchyd.compile(tracer)));
+                                    scope.urls = build_urls(); 
                                 };
-                                
-                                scope.shadow("urls",adjust_urls(switchyd.expand(scope.config_tracer)));
-                                scope.$watch("config_tracer",function(){
-                                    scope.shadow("urls",adjust_urls(switchyd.expand(scope.config_tracer)));
-                                });
-                                
-                                scope.editing = function(index,url){
-                                    scope.get_shadow("urls")[index] = url;
-                                };
-                                
-                                scope.insertURL = function(index){
-                                    scope.urls.splice(index+1,0,"new-url-" + Date.now());
-                                    scope.urls = adjust_urls(scope.urls);
-                                    scope.shadow("urls",scope.urls);
-                                };
-                                
-                                scope.removeURL = function(index){
-                                    scope.urls.splice(index,1)
-                                    scope.urls = adjust_urls(scope.urls);
-                                    scope.shadow("urls",scope.urls);
-                                };
-                                
-                                scope.$watch("active",function(){
-                                    scope.shadow("urls",scope.get_shadow("urls"));
-                                });
 
                                 break; 
                         }

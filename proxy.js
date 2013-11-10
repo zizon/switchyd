@@ -292,7 +292,7 @@ var switchyd = {
             },
 
             function(){
-                console.log("setting apply,sciprt:\n"+script);
+                console.log("setting apply,script:\n"+script);
             }
         );
         
