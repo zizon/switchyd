@@ -44,7 +44,7 @@
                 </div>
                 <div id="rules" ng-show='active' class='center'>
                     <div ng-repeat='rule in rules'>
-                        <input class='url-box' type='text' ng-model='rule.rule.name' ng-change='rules[$index].rule.name = rule.rule.name'></input><span readonly> meet for {{rule.count}} times</span>
+                        <input class='url-box' type='text' ng-model='rule.rule.name' ng-change='rules[$index].rule.name = rule.rule.name'></input><span readonly> meet for {{rule.rule.count}} times</span>
                         <text class='clickable' ng-click='insert(rule,$index,rules)'>+</text>
                         <text class='clickable' ng-click='remove($index,rules)'>-</text>
                     </div>
