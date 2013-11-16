@@ -45,7 +45,7 @@
                        
                         scope.remove = function(index,array){
                             if( array.length > 1 ){
-                                array.slice(index,1);
+                                array.splice(index,1);
                             } 
                         };
 
