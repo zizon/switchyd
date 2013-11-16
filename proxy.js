@@ -317,11 +317,15 @@ var switchyd = {
                 
                 var start = details.url.indexOf("://") + 3;
                 var url = details.url.substr(start,details.url.indexOf("/",start) - start);
-                if( !switchyd.match(switchyd.config.tracers.do_not_track,url) 
-                    || !switchyd.match(switchyd.config.tracers.proxy,url)){
-                    switchyd.tracer("proxy").track(url);
-                    switchyd.async.enqueue();
+                
+                // only trigger when it was not track yet.
+                if( switchyd.match(switchyd.config.tracers.do_not_track,url) 
+                    || switchyd.match(switchyd.config.tracers.proxy,url) ){
+                    return;
                 }
+
+                switchyd.tracer("proxy").track(url);
+                switchyd.async.enqueue();
             }
         },{"urls":["<all_urls>"]});
         
