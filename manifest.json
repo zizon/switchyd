@@ -1,20 +1,22 @@
 {
-	"name": "switchyd",
-	"version": "0.7.2.10",
-	"manifest_version": 2,
-    
-	"background":{
+    "name": "switchyd",
+    "version": "0.7.2.11",
+    "manifest_version": 2,
+
+    "background":{
         "persistent": true,
         "scripts": ["proxy.js"]
     },
-    
+
     "options_page": "options.html",
 
-	"permissions": [
+    "permissions": [
         "alarms",
         "proxy",
         "webRequest",
         "http://*/*",
         "https://*/*"
-	]
+    ],
+
+    "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'"
 }
