@@ -1,6 +1,6 @@
 {
     "name": "switchyd",
-    "version": "0.7.2.12",
+    "version": "0.7.2.13",
     "manifest_version": 2,
 
     "background":{
@@ -16,5 +16,7 @@
         "webRequest",
         "http://*/*",
         "https://*/*"
-    ]
+    ],
+
+    "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'"
 }
