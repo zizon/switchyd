@@ -15,6 +15,7 @@
                     <span>{{navi.name}}</span>
                 </div>
                 <input text='text' ng-click='sync()' readonly value='sync' class='button'></input>
+                <input text='text' ng-click='reset()' readonly value='reset' class='button'></input>
             </div>
             <div id="stage">
                 <div id='servers' ng-show='active' class='center'>
@@ -24,8 +25,8 @@
                         </select>
                         <span>
                             <input type='text' ng-model='server.ip'></input>:<input type='text' ng-model='server.port'></input>
-                            <text class='clickable' ng-click='insert(switchyd.config.servers[$index],$index,switchyd.config.servers)'>+</text>
-                            <text class='clickable' ng-click='switchyd.config.servers.splice($index,1)'>-</text>
+                            <text class='clickable' ng-click='insert(server,$index,switchyd.config.servers)'>+</text>
+                            <text class='clickable' ng-click='remove($index,switchyd.config.servers)'>-</text>
                         </span>
                     </div>
                 </div>

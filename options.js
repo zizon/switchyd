@@ -16,8 +16,10 @@ chrome.runtime.getBackgroundPage(function(app){
             name:name,
             active:false,
             loaded:false,
-            sync:angular.noop
-        }
+            sync:angular.noop,
+            reset:angular.noop,
+            reload:angular.noop
+        };
     });
     
     scope.$on("active-changed",function(event){
@@ -43,6 +45,18 @@ chrome.runtime.getBackgroundPage(function(app){
 
                 switch(navi.name){
                     case "servers":
+                        navi.reset = function(){
+                            scope.switchyd.config.servers = [
+                                {
+                                    type:"SOCKS5",
+                                    ip:"127.0.0.1",
+                                    port:10086
+                                }
+                            ];
+                            
+                            switchyd.sync.save();
+                        };
+                        break;
                     case "rules":
                         var build_rules = function(){
                             var result = [];
@@ -71,6 +85,17 @@ chrome.runtime.getBackgroundPage(function(app){
                                 }
                             });
                         };
+                        
+                        navi.reset = function(){
+                            scope.switchyd.config.rules = {
+                                "net::ERR_CONNECTION_RESET":0,
+                                "net::ERR_CONNECTION_TIMED_OUT":0,
+                                "net::ERR_SSL_PROTOCOL_ERROR":0
+                            };
+                            scope.rules = build_rules();
+                            
+                            switchyd.sync.save();
+                        };
                         break;
                     case "proxy-list":
                         scope.tracer = "proxy";
@@ -80,6 +105,9 @@ chrome.runtime.getBackgroundPage(function(app){
                         }
                         
                         var build_urls = function(){
+                            // proxy tracer depends on do_not_track,so rebuild all.
+                            scope.switchyd.build();
+                            
                             var urls = scope.switchyd.expand(scope.switchyd.config.tracers[scope.tracer]);
                             if( urls.length === 0 ){
                                 urls.push("NONE");
@@ -89,9 +117,14 @@ chrome.runtime.getBackgroundPage(function(app){
 
                             return urls.map(function(url){ return {url:url}});
                         };
-                        scope.urls = build_urls();
+     
+                        scope.reload = function(){
+                            scope.urls = build_urls();
+                        }
 
-                        navi.sync = function(){        
+                        scope.reload();
+                        
+                        navi.sync = function(){                           
                             scope.switchyd.config.tracers[scope.tracer] = switchyd.optimize(scope.switchyd.compile(
                                     scope.urls.reduce(function(tracer,url){
                                         if( url.url != "NONE"){
@@ -101,9 +134,18 @@ chrome.runtime.getBackgroundPage(function(app){
                                     },scope.switchyd.tracer(scope.tracer))
                             ));
                             
-                            scope.urls = build_urls(); 
+                            scope.reload();
+                            
+                            console.log(scope.urls);
                         };
-
+                        
+                        navi.reset = function(){
+                            scope.switchyd.config.tracers[scope.tracer] = {};
+                            
+                            scope.reload();
+                            
+                            switchyd.sync.save();
+                        };
                         break; 
                 }
                             
@@ -116,6 +158,13 @@ chrome.runtime.getBackgroundPage(function(app){
         });
     });
     
+    var progress = function(message){
+        scope.message = message;
+        injector.get("$timeout")(function(){
+            scope.message = '';
+        },2000);
+    };
+    
     scope.navis[0].active = true;
     scope.sync = function(){
         scope.navis.forEach(function(navi){
@@ -123,10 +172,22 @@ chrome.runtime.getBackgroundPage(function(app){
         });
         
         switchyd.async.enqueue();
-        scope.message = "sync...";
-        injector.get("$timeout")(function(){
-            scope.message = '';
-        },2000);
+        
+        scope.navis.forEach(function(navi){
+            navi.reload();
+        });
+        
+        progress("sync...");
+    };
+    
+    scope.reset = function(){
+        scope.navis.forEach(function(navi){ 
+            if(navi.active){
+                navi.reset();
+            }
+        });
+        
+        progress("reset...");
     };
     
     scope.$emit("active-changed");
