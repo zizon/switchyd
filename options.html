@@ -21,7 +21,7 @@
                 <div id='servers' ng-show='active' class='center'>
                     <div ng-repeat='server in switchyd.config.servers'>
                         <select ng-model='server.type'>
-                            <option ng-repeat='type in ["SOCKS5","PROXY"]'>{{type}}</option>
+                            <option ng-repeat='type in ["SOCKS5","PROXY","HTTPS"]'>{{type}}</option>
                         </select>
                         <span>
                             <input type='text' ng-model='server.ip'></input>:<input type='text' ng-model='server.port'></input>
