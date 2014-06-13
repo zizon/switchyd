@@ -135,8 +135,6 @@ chrome.runtime.getBackgroundPage(function(app){
                             ));
                             
                             scope.reload();
-                            
-                            console.log(scope.urls);
                         };
                         
                         navi.reset = function(){
