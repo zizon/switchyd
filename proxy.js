@@ -47,7 +47,8 @@ var switchyd = {
         rules:{
             "net::ERR_CONNECTION_RESET":0,
             "net::ERR_CONNECTION_TIMED_OUT":0,
-            "net::ERR_SSL_PROTOCOL_ERROR":0
+            "net::ERR_SSL_PROTOCOL_ERROR":0,
+            "net::ERR_TIMED_OUT":0
         }
     },
     
