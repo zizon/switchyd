@@ -1,21 +1,20 @@
 {
     "name": "switchyd",
-    "version": "0.7.3.4",
+    "version": "0.7.4.0",
     "manifest_version": 2,
-
+    "incognito":"spanning",
+    
     "background":{
         "persistent": true,
         "scripts": ["proxy.js"]
     },
 
-    "options_page": "options.html",
+    "options_page": "polymer_option.html",
 
     "permissions": [
         "proxy",
         "webRequest",
         "http://*/*",
         "https://*/*"
-    ],
-
-    "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'"
+    ]
 }

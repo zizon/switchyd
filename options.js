@@ -2,7 +2,7 @@
 chrome.runtime.getBackgroundPage(function(app){
     var switchyd = app.switchyd;
     var injector = angular.injector(['ng']);
-    injector.get("$animate").enabled(true);
+    
     var scope = injector.get("$rootScope").$new(true);
     scope.activate = function(index){
         scope.navis.forEach(function(navi,i){

@@ -328,7 +328,12 @@ var switchyd = {
                 switchyd.tracer("proxy").track(url);
                 switchyd.async.enqueue();
             }
-        },{"urls":["<all_urls>"]});
+        },{
+            "urls":[
+                "http://*/*",
+                "https://*/*"
+            ]
+        });
         
         this.async.enqueue();
     }
