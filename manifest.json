@@ -9,12 +9,14 @@
         "scripts": ["proxy.js"]
     },
 
-    "options_page": "polymer_option.html",
+    "options_page": "option.html",
 
     "permissions": [
         "proxy",
         "webRequest",
         "http://*/*",
         "https://*/*"
-    ]
+    ],
+
+    "content_security_policy": "object-src 'self';script-src 'self' 'unsafe-eval';style-src 'self' 'unsafe-inline';"
 }

@@ -1,0 +1,14 @@
+{
+    "name":"switchyd",
+    "version":"0.0.0.1",
+    "private":true,
+    
+    "main":[
+        "polymer_option.html",
+        "polymer_option.js"
+    ],
+    
+    "dependencies":{
+        "paper-tabs":"Polymer/paper-tabs"
+    }
+}
