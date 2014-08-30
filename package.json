@@ -26,6 +26,6 @@
     "dependencies":{
         "grunt":"*",
         "vulcanize":"*",
-        "bower":"*"
+        "grunt-vulcanize":"*"
     }
 }
