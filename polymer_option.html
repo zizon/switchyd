@@ -1,18 +1,38 @@
 <!doctype html>
 <html>
     <head>
-        <meta charset="utf-8">
+        <meta charset='utf-8'>
         <title>options</title>
         
-        <link rel="import" href="bower_components/paper-tabs/paper-tabs.html">
-        <link rel="import" href="bower_components/paper-toast/paper-toast.html">
+        <link rel='import' href='bower_components/paper-tabs/paper-tabs.html'>
+        <link rel='import' href='bower_components/paper-toast/paper-toast.html'>
+        <link rel='import' href='bower_components/core-animated-pages/core-animated-pages.html'>
     </head>
     <body fullbleed layout vertical>
-        <paper-tabs selected='0'>
+        <paper-tabs id='tabs' selected='0'>
             <paper-tab>Servers</paper-tab>
             <paper-tab>Proxys</paper-tab>
             <paper-tab>Excluded</paper-tab>
             <paper-tab>Hooks</paper-tab>
         </paper-tabs>
+
+        <core-animated-pages id='pages' transitions='cross-fade-all'>
+            <section>
+                <div cross-fade-all>First page</div>
+            </section>
+            <section>
+                <div  cross-fade-all>Second page</div>
+            </section>
+        </core-animated-pages>
+        
+        <script>
+            (function(){
+                var tabs = document.querySelector('#tabs');
+                var pages = document.querySelector('#pages');
+                    tabs.addEventListener('core-select',function(event){
+                    pages.selected = this.selected;
+                });
+            })();
+        </script>
     </body>
 </html>

@@ -12,6 +12,7 @@
         "paper-tabs":"Polymer/paper-tabs",
         "paper-toast":"Polymer/paper-toast",
         "polymer":"Polymer/polymer",
-        "core-header-panel":"Polymer/core-header-panel"
+        "core-header-panel":"Polymer/core-header-panel",
+        "core-animated-pages":"Polymer/core-animated-pages"
     }
 }
