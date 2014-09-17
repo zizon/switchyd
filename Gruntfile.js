@@ -16,7 +16,10 @@ module.exports = function(grunt) {
 
         watch :{
             default : {
-                files : ['polymer_option.html'],
+                files : [
+                    'polymer_option.html',
+                    'polymer/switchyd-servers.html',    
+                ],
                 tasks : ['vulcanize'],
                 options : {
                     event : ['changed']

@@ -1,7 +1,24 @@
 <link rel='import' href='../bower_components/polymer/polymer.html'>
+<link rel='import' href='../bower_components/core-list/core-list.html'>
+<link rel='import' href='../bower_components/paper-dropdown/paper-dropdown.html'>
+<link rel='import' href='../bower_components/paper-item/paper-item.html'>
 
-<polymer-element name='switchyd-servers' noscript>
+<polymer-element name='switchyd-servers' extends='core-list'>
     <template>
-        <div>First page</div>
+        <section>
+        <paper-dropdown selected='SOCKS5' valueattr='label'>
+            <paper-item label='SOCKS5'></paper-item>
+            <paper-item label='PROXY'></paper-item>
+        <paper-dropdown>
+    </section>
     </template>
+
+    <script>
+        Polymer({
+            created:function(){
+            },
+        });
+
+        
+    </script>
 </polymer-element>
