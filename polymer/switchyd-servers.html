@@ -2,21 +2,39 @@
 <link rel='import' href='../bower_components/core-list/core-list.html'>
 <link rel='import' href='../bower_components/paper-dropdown/paper-dropdown.html'>
 <link rel='import' href='../bower_components/paper-item/paper-item.html'>
+<link rel='import' href='../bower_components/paper-input/paper-input.html'>
 
-<polymer-element name='switchyd-servers' extends='core-list'>
+<polymer-element name='switchyd-servers'>
     <template>
-        <section>
-        <paper-dropdown selected='SOCKS5' valueattr='label'>
-            <paper-item label='SOCKS5'></paper-item>
-            <paper-item label='PROXY'></paper-item>
-        <paper-dropdown>
-    </section>
+        <core-list sync='true' data='{{data}}'>
+            <template>
+                <section>
+                <paper-dropdown selected='{{type}}' valueattr='label'>
+                    <paper-item label='SOCKS5'></paper-item>
+                    <paper-item label='PROXY'></paper-item>
+                </paper-dropdown>
+                <paper-input floatingLabel label='Proxy Server IP or Address' value='{{ip}}'></paper-input>
+                <paper-input floatingLabel label='Proxy Server Port' value='{{port}}'></paper-input>
+                <section>
+            </template>
+        </core-list>
     </template>
 
     <script>
         Polymer({
             created:function(){
-            },
+                this.data=[
+                        {
+                            type:'SOCKS5',
+                            ip:'127.0.0.1',
+                            port:10087,
+                        },
+                        {   type:'PROXY',
+                            ip:'127.0.0.1',
+                            port:10086,
+                        }
+                ];
+            }
         });
 
         

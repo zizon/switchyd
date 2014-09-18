@@ -10,7 +10,7 @@
         <link rel='import' href='bower_components/core-animated-pages/core-animated-pages.html'>
         <link rel='import' href='polymer/switchyd-servers.html'>
     </head>
-    <body fullbleed layout vertical>
+    <body unresolved>
         <paper-tabs id='tabs' selected='0'>
             <paper-tab>Servers</paper-tab>
             <paper-tab>Proxys</paper-tab>
@@ -20,7 +20,7 @@
 
         <core-animated-pages id='pages' transitions='cross-fade-all'>
             <section>
-                <switchyd-servers fullbleed cross-fade-all/>
+                <switchyd-servers cross-fade-all/>
             </section>
             <section>
                 <div  cross-fade-all>Second page</div>

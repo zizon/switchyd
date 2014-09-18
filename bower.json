@@ -13,6 +13,7 @@
         "paper-tabs":"Polymer/paper-tabs",
         "paper-toast":"Polymer/paper-toast",
         "paper-dropdown":"Polymer/paper-dropdown",
+        "paper-input":"Polymer/paper-input",
         "polymer":"Polymer/polymer",
         "core-header-panel":"Polymer/core-header-panel",
         "core-animated-pages":"Polymer/core-animated-pages",
