@@ -2,7 +2,6 @@
     "name": "switchyd",
     "version": "0.7.4.0",
     "manifest_version": 2,
-    "incognito":"spanning",
     
     "background":{
         "persistent": true,
@@ -14,7 +13,9 @@
     "permissions": [
         "proxy",
         "webRequest",
-        "<all_urls>"
+        "<all_urls>",
+        "http://*/*",
+        "https://*/*"
     ],
 
     "content_security_policy": "object-src 'self';script-src 'self' 'unsafe-eval';style-src 'self' 'unsafe-inline';"
