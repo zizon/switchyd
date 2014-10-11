@@ -1,14 +1,22 @@
 <link rel='import' href='../bower_components/polymer/polymer.html'>
 <link rel='import' href='../bower_components/core-list/core-list.html'>
-<link rel='import' href='../bower_components/paper-dropdown/paper-dropdown.html'>
-<link rel='import' href='../bower_components/paper-item/paper-item.html'>
+<link rel='import' href='../bower_components/core-field/core-field.html'>
 <link rel='import' href='../bower_components/paper-input/paper-input.html'>
+<link rel='import' href='../bower_components/paper-dropdown-menu/paper-dropdown-menu.html'>
+<link rel='import' href='../bower_components/paper-item/paper-item.html'>
+<link rel='import' href='../bower_components/core-icons/core-icons.html'>
+<link rel='import' href='../bower_components/paper-icon-button/paper-icon-button.html'>
 
 <polymer-element name='switchyd-servers'>
     <template>
         <core-list sync='true' data='{{data}}'>
             <template>
-                <paper-input floatingLabel label='' value='{{type}}:{{ip}} {{port}}'>
+                <core-field>
+                <paper-input value='{{model.type}} {{model.ip}}:{{model.port}}'>
+
+                </paper-input>
+                <paper-icon-button icon="add"></paper-icon-button>
+                <core-field>
             </template>
         </core-list>
     </template>
@@ -29,7 +37,5 @@
                 ];
             }
         });
-
-        
     </script>
 </polymer-element>

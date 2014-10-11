@@ -5,41 +5,9 @@
         <title>options</title>
         <script src="bower_components/platform/platform.js"></script>
         
-        <link rel='import' href='bower_components/paper-tabs/paper-tabs.html'>
-        <link rel='import' href='bower_components/paper-toast/paper-toast.html'>
-        <link rel='import' href='bower_components/core-animated-pages/core-animated-pages.html'>
-        <link rel='import' href='polymer/switchyd-servers.html'>
+        <link rel='import' href='polymer/switchyd-main.html'>
     </head>
     <body unresolved>
-        <paper-tabs id='tabs' selected='0'>
-            <paper-tab>Servers</paper-tab>
-            <paper-tab>Proxys</paper-tab>
-            <paper-tab>Excluded</paper-tab>
-            <paper-tab>Hooks</paper-tab>
-        </paper-tabs>
-
-        <core-animated-pages id='pages' transitions='cross-fade-all'>
-            <section>
-                <switchyd-servers cross-fade-all/>
-            </section>
-            <section>
-                <div  cross-fade-all>Second page</div>
-            </section>
-            <section>
-                <div  cross-fade-all>Third page</div>
-            </section>
-            <section>
-                <div  cross-fade-all>Fourth page</div>
-            </section>
-        </core-animated-pages>
-        <script>
-            (function(){
-                var tabs = document.querySelector('#tabs');
-                var pages = document.querySelector('#pages');
-                    tabs.addEventListener('core-select',function(event){
-                    pages.selected = this.selected;
-                });
-            })();
-        </script>
+        <switchyd-main/>
     </body>
 </html>

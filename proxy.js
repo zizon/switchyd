@@ -286,7 +286,7 @@ var switchyd = {
                 "value":{
                     "mode":"pac_script",
                     "pacScript":{
-                        "mandatory":true,
+                        "mandatory":false,
                         "data":script
                     }
                 }
@@ -309,31 +309,33 @@ var switchyd = {
         
         // network diagnose
         chrome.webRequest.onErrorOccurred.addListener(function(details){
-            console.error(details);
-            
-            // inspect potential reset request
-            if( details.error in switchyd.config.rules ){
-                // track hits
-                ++switchyd.config.rules[details.error];
-                
-                var start = details.url.indexOf("://") + 3;
-                var url = details.url.substr(start,details.url.indexOf("/",start) - start);
-                
-                // only trigger when it was not track yet.
-                if( switchyd.match(switchyd.config.tracers.do_not_track,url) 
-                    || switchyd.match(switchyd.config.tracers.proxy,url) ){
-                    return;
-                }
+                console.error(details);
+                  
+                // inspect potential reset request
+                if( details.error in switchyd.config.rules ){
+                    // track hits
+                    ++switchyd.config.rules[details.error];
+                    
+                    var start = details.url.indexOf("://") + 3;
+                    var url = details.url.substr(start,details.url.indexOf("/",start) - start);
+                    
+                    // only trigger when it was not track yet.
+                    if( switchyd.match(switchyd.config.tracers.do_not_track,url) 
+                        || switchyd.match(switchyd.config.tracers.proxy,url) ){
+                        return;
+                    }
 
-                switchyd.tracer("proxy").track(url);
-                switchyd.async.enqueue();
+                    switchyd.tracer("proxy").track(url);
+                    switchyd.async.enqueue();
+                }
+            },
+            {
+                "urls":[
+                    "http://*/*",
+                    "https://*/*"
+                ]
             }
-        },{
-            "urls":[
-                "http://*/*",
-                "https://*/*"
-            ]
-        });
+        );
         
         this.async.enqueue();
     }

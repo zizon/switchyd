@@ -18,7 +18,7 @@ module.exports = function(grunt) {
             default : {
                 files : [
                     'polymer_option.html',
-                    'polymer/switchyd-servers.html',    
+                    'polymer/*.html',    
                 ],
                 tasks : ['vulcanize'],
                 options : {
