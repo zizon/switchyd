@@ -9,12 +9,12 @@
 
 <polymer-element name='switchyd-servers'>
     <template>
-        <core-list sync='true' data='{{data}}'>
+        <core-list id='list' data='{{servers}}'>
             <template>
                 <core-field>
-                <paper-input value='{{model.type}} {{model.ip}}:{{model.port}}'></paper-input>
-                <paper-icon-button icon="add"></paper-icon-button>
-                <paper-icon-button icon="remove"></paper-icon-button>
+                    <paper-input value='{{model.type}} {{model.ip}}:{{model.port}}'></paper-input>
+                    <paper-icon-button index='{{index}}' on-down='{{row_add}}' icon="add"></paper-icon-button>
+                    <paper-icon-button index='{{index}}' on-click='{{row_remove}}' icon="remove"></paper-icon-button>
                 <core-field>
             </template>
         </core-list>
@@ -22,8 +22,10 @@
 
     <script>
         Polymer({
+            servers : [],
+            
             created:function(){
-                this.data=[
+                this.servers = [
                         {
                             type:'SOCKS5',
                             ip:'127.0.0.1',
@@ -34,6 +36,18 @@
                             port:10086,
                         }
                 ];
+            },
+
+            row_add:function(event,detail,sender,target){
+                var index = sender.attributes.index.value;
+                this.servers.splice(index,0,this.servers[index]);
+            },
+
+            row_remove:function(event,detail,sender,target){
+                var index = sender.attributes.index.value;
+                if(this.servers.length > 1){
+                    this.servers.splice(index,1);
+                } 
             }
         });
     </script>
