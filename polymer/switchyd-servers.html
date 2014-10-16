@@ -2,19 +2,16 @@
 <link rel='import' href='../bower_components/core-list/core-list.html'>
 <link rel='import' href='../bower_components/core-field/core-field.html'>
 <link rel='import' href='../bower_components/paper-input/paper-input.html'>
-<link rel='import' href='../bower_components/paper-dropdown-menu/paper-dropdown-menu.html'>
-<link rel='import' href='../bower_components/paper-item/paper-item.html'>
-<link rel='import' href='../bower_components/core-icons/core-icons.html'>
 <link rel='import' href='../bower_components/paper-icon-button/paper-icon-button.html'>
 
 <polymer-element name='switchyd-servers'>
     <template>
-        <core-list id='list' data='{{servers}}'>
+        <core-list data='{{datas}}'>
             <template>
                 <core-field>
-                    <paper-input value='{{model.type}} {{model.ip}}:{{model.port}}'></paper-input>
-                    <paper-icon-button index='{{index}}' on-down='{{row_add}}' icon="add"></paper-icon-button>
-                    <paper-icon-button index='{{index}}' on-click='{{row_remove}}' icon="remove"></paper-icon-button>
+                    <paper-input error='example: PROXY 127.0.0.1:10086 or SOCKS5 127.0.0.1:10087' index={{index}} on-input='{{typing}}' on-change='{{change}}' value='{{model.type}} {{model.ip}}:{{model.port}}'></paper-input>
+                    <paper-icon-button index='{{index}}' on-down='{{add}}' icon="add"></paper-icon-button>
+                    <paper-icon-button index='{{index}}' on-click='{{remove}}' icon="remove"></paper-icon-button>
                 <core-field>
             </template>
         </core-list>
@@ -22,32 +19,93 @@
 
     <script>
         Polymer({
-            servers : [],
+            datas : [],
+            
+            modify:false,
             
             created:function(){
-                this.servers = [
-                        {
-                            type:'SOCKS5',
-                            ip:'127.0.0.1',
-                            port:10087,
-                        },
-                        {   type:'PROXY',
-                            ip:'127.0.0.1',
-                            port:10086,
-                        }
+                var self = this;
+                chrome.runtime.getBackgroundPage(function(app){
+                    console.log(app.switchyd);
+                    //self.datas = app.switchyd.config.servers
+                });
+                
+                this.datas = [
+                            {
+                                type:'SOCKS5',
+                                ip:'127.0.0.1',
+                                port:10087,
+                            },
+                            {   type:'PROXY',
+                                ip:'127.0.0.1',
+                                port:10086,
+                            }
                 ];
             },
 
-            row_add:function(event,detail,sender,target){
+            add:function(event,detail,sender,target){
                 var index = sender.attributes.index.value;
-                this.servers.splice(index,0,this.servers[index]);
+                this.datas.splice(index,0,this.datas[index]);
             },
 
-            row_remove:function(event,detail,sender,target){
+            remove:function(event,detail,sender,target){
                 var index = sender.attributes.index.value;
-                if(this.servers.length > 1){
-                    this.servers.splice(index,1);
+                if(this.datas.length > 1){
+                    this.datas.splice(index,1);
                 } 
+            },
+            
+            parse:function(raw){
+                // trim
+                raw = raw.trim()
+                
+                // find indicator 
+                var space = raw.indexOf(' ');
+                if( space == -1 ){
+                    return null;
+                }
+                
+                // parse type
+                var type = raw.substr(0,space);
+                
+                // server 
+                var server = raw.substr(space).trim().split(':').map(function(item){
+                    return item.trim();
+                });
+                
+                if(server.length != 2){
+                    return null;
+                }
+                
+                return {
+                    type:type.toUpperCase(),
+                    ip:server[0],
+                    port:server[1],
+                };
+            },
+
+            change:function(event,detail,sender,target){
+                // notify state chagne
+                this.modify = true;
+
+                // figure out which changed
+                var index = sender.attributes.index.value;
+                
+                // try parser new config
+                var parsed = this.parse(sender.inputValue);
+
+                // parse ok
+                if( parsed ){
+                    this.invalid = false;
+                    this.datas.splice(index,1,parsed);
+                    
+                    // rebuild input value
+                    sender.inputValue = parsed.type + ' ' + parsed.ip + ':' + parsed.port; 
+                    return;
+                }
+
+                // or it failed
+                sender.invalid = true;
             }
         });
     </script>

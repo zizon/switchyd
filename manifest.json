@@ -16,5 +16,5 @@
         "<all_urls>"
     ],
 
-    "content_security_policy": "object-src 'self';script-src 'self' 'unsafe-eval';style-src 'self' 'unsafe-inline';"
+    "content_security_policy": "object-src 'self';script-src 'self' 'unsafe-eval';"
 }
