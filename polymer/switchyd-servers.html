@@ -3,56 +3,53 @@
 <link rel='import' href='../bower_components/core-field/core-field.html'>
 <link rel='import' href='../bower_components/paper-input/paper-input.html'>
 <link rel='import' href='../bower_components/paper-icon-button/paper-icon-button.html'>
+<link rel='import' href='../bower_components/paper-toast/paper-toast.html'>
+<link rel='import' href='../bower_components/paper-button/paper-button.html'>
 
 <polymer-element name='switchyd-servers'>
     <template>
+        <!-- server list -->
         <core-list data='{{datas}}'>
             <template>
-                <core-field>
-                    <paper-input error='example: PROXY 127.0.0.1:10086 or SOCKS5 127.0.0.1:10087' index={{index}} on-input='{{typing}}' on-change='{{change}}' value='{{model.type}} {{model.ip}}:{{model.port}}'></paper-input>
-                    <paper-icon-button index='{{index}}' on-down='{{add}}' icon="add"></paper-icon-button>
+            <core-field on-core-select='{{hook}}'>
+                    <paper-input error='example: PROXY 127.0.0.1:10086 or SOCKS5 127.0.0.1:10087' index={{index}} on-change='{{change}}' value='{{model.type}} {{model.ip}}:{{model.port}}'></paper-input>
+                    <paper-icon-button index='{{index}}' on-click='{{add}}' icon="add"></paper-icon-button>
                     <paper-icon-button index='{{index}}' on-click='{{remove}}' icon="remove"></paper-icon-button>
                 <core-field>
             </template>
         </core-list>
+        
+        <!-- notify center-->
+        <paper-toast id='toast' text='Proxy Server Applied'></paper-toast>
     </template>
 
     <script>
         Polymer({
-            datas : [],
-            
-            modify:false,
-            
-            created:function(){
+            datas:[],
+
+            ready:function(){
                 var self = this;
                 chrome.runtime.getBackgroundPage(function(app){
-                    console.log(app.switchyd);
-                    //self.datas = app.switchyd.config.servers
+                    self.datas = app.switchyd.config.servers
                 });
-                
-                this.datas = [
-                            {
-                                type:'SOCKS5',
-                                ip:'127.0.0.1',
-                                port:10087,
-                            },
-                            {   type:'PROXY',
-                                ip:'127.0.0.1',
-                                port:10086,
-                            }
-                ];
             },
 
             add:function(event,detail,sender,target){
                 var index = sender.attributes.index.value;
                 this.datas.splice(index,0,this.datas[index]);
+                
+                // modifyed
+                this.sync();
             },
 
             remove:function(event,detail,sender,target){
                 var index = sender.attributes.index.value;
+                console.log(index);
                 if(this.datas.length > 1){
                     this.datas.splice(index,1);
-                } 
+                    // modified
+                    this.sync();
+                }
             },
             
             parse:function(raw){
@@ -85,27 +82,51 @@
             },
 
             change:function(event,detail,sender,target){
-                // notify state chagne
-                this.modify = true;
-
-                // figure out which changed
-                var index = sender.attributes.index.value;
-                
                 // try parser new config
                 var parsed = this.parse(sender.inputValue);
 
                 // parse ok
                 if( parsed ){
-                    this.invalid = false;
+                    // figure out which changed
+                    var index = sender.attributes.index.value;
+
+                    sender.invalid = false;
                     this.datas.splice(index,1,parsed);
                     
                     // rebuild input value
+                    // since parse change type to upper case in which the orign type might also in upper case meanwhile the input value typed would be in lower case.
+                    // so correct it here
                     sender.inputValue = parsed.type + ' ' + parsed.ip + ':' + parsed.port; 
+                    sender.commit();
+                    
+                    this.sync();
                     return;
                 }
-
+                
                 // or it failed
                 sender.invalid = true;
+            },
+            
+            sync:function(){
+                var self = this; 
+                chrome.runtime.getBackgroundPage(function(app){
+                    switchyd.config.servers = this.datas;
+
+                    // persist
+                    switchyd.sync.save();
+
+                    // apply change
+                    switchyd.async.enqueue();
+                    
+                    self.$.toast.show();
+                });
+            },
+
+            hook:function(event,detail,sender,target){
+                consoel.log(event);
+                console.log(detail);
+                console.log(sender);
+                console.log(target);
             }
         });
     </script>
