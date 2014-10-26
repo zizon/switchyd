@@ -15,7 +15,6 @@
         "paper-input":"Polymer/paper-input",
         "paper-button":"Polymer/paper-button",
         "polymer":"Polymer/polymer",
-        "polymer-dev":"Polymer/polymer-dev",
         "core-header-panel":"Polymer/core-header-panel",
         "core-animated-pages":"Polymer/core-animated-pages",
         "core-list":"Polymer/core-list",

@@ -9,12 +9,12 @@
 <polymer-element name='switchyd-servers'>
     <template>
         <!-- server list -->
-        <core-list data='{{datas}}'>
+        <core-list id='t' data='{{datas}}'>
             <template>
-            <core-field on-core-select='{{hook}}'>
+            <core-field on-core-select='{{}}'>
                     <paper-input error='example: PROXY 127.0.0.1:10086 or SOCKS5 127.0.0.1:10087' index={{index}} on-change='{{change}}' value='{{model.type}} {{model.ip}}:{{model.port}}'></paper-input>
-                    <paper-icon-button index='{{index}}' on-click='{{add}}' icon="add"></paper-icon-button>
-                    <paper-icon-button index='{{index}}' on-click='{{remove}}' icon="remove"></paper-icon-button>
+                    <paper-icon-button index='{{index}}' on-tap='{{add}}' icon="add"></paper-icon-button>
+                    <paper-icon-button index='{{index}}' on-tap='{{remove}}' icon="remove"></paper-icon-button>
                 <core-field>
             </template>
         </core-list>
@@ -26,12 +26,36 @@
     <script>
         Polymer({
             datas:[],
-
             ready:function(){
+                console.log('v13');
                 var self = this;
                 chrome.runtime.getBackgroundPage(function(app){
-                    self.datas = app.switchyd.config.servers
+                    self.datas = app.switchyd.config.servers;
+                    var data=[
+                        {
+                            type:'SOCKS5',
+                            ip:'127.0.0.3',
+                            port:10086
+                        }
+                    ];
+                    //app.switchyd.config.servers = data;
+                    //self.datas = app.switchyd.config.servers
                 });
+                /* 
+                this.datas=[
+                    {
+                        type:'SOCKS5',
+                        ip:'127.0.0.1',
+                        port:10086
+                    }
+                ];
+                */
+            },
+            
+            datasChanged:function(old,now){
+                console.log('-------v9');
+                console.log(old);
+                console.log(now);
             },
 
             add:function(event,detail,sender,target){
@@ -39,16 +63,16 @@
                 this.datas.splice(index,0,this.datas[index]);
                 
                 // modifyed
-                this.sync();
+                //this.sync();
             },
 
             remove:function(event,detail,sender,target){
                 var index = sender.attributes.index.value;
-                console.log(index);
+                
                 if(this.datas.length > 1){
                     this.datas.splice(index,1);
                     // modified
-                    this.sync();
+                    //this.sync();
                 }
             },
             
@@ -99,7 +123,7 @@
                     sender.inputValue = parsed.type + ' ' + parsed.ip + ':' + parsed.port; 
                     sender.commit();
                     
-                    this.sync();
+                    //this.sync();
                     return;
                 }
                 
@@ -123,7 +147,8 @@
             },
 
             hook:function(event,detail,sender,target){
-                consoel.log(event);
+                
+                console.log(event);
                 console.log(detail);
                 console.log(sender);
                 console.log(target);
