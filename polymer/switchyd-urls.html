@@ -1,13 +1,20 @@
 <link rel='import' href='../bower_components/polymer/polymer.html'>
 
 <link rel='import' href='../bower_components/core-list/core-list.html'>
+<link rel='import' href='../bower_components/core-field/core-field.html'>
+<link rel='import' href='../bower_components/paper-input/paper-input.html'>
+<link rel='import' href='../bower_components/paper-icon-button/paper-icon-button.html'>
+<link rel='import' href='../bower_components/paper-toast/paper-toast.html'>
 
-<polymer-element name='switchyd-urls'>
+<polymer-element name='switchyd-urls' attributes='tracer'>
     <template>
-        <core-list data='{{datas}}'>
+        <core-list data='{{urls}}' extraItems='{{urls.length}}'>
             <template>
                 <core-field>
-                    <paper-input error='at least 3 level domain name'></paper-input> 
+                    <paper-input error='at least 3 level domain name' value='{{model.url}}'></paper-input> 
+                    <paper-icon-button index='{{index}}' on-tap='{{add}}' icon="add"></paper-icon-button>
+                    <paper-icon-button index='{{index}}' on-tap='{{remove}}' icon="remove"></paper-icon-button>
+ 
                 </core-field>
             </template>
         </core-list>
@@ -15,17 +22,32 @@
 
     <script>
         Polymer('switchyd-urls',{
-            datas : [],
-            
             tracer : null,
+            
+            urls : [],
 
             ready : function(){
-                var self = this; 
+                var self = this;
+                console.log(this.tracer);
                 chrome.runtime.getBackgroundPage(function(app){
-                    var switchyd = app.switchyd.config.tracers[];
-                    var urls = switchyd
+                    var switchyd = app.switchyd;
+                    self.urls = switchyd.expand(switchyd.config.tracers[self.tracer]).map(
+                        function(unit){
+                            return {
+                                url:unit
+                            };
+                        }    
+                    );
                 });
-            }
+            },
+
+            add:function(event,detail,sender,target){
+                var index = sender.attributes.index.value;
+                this.datas.splice(index,0,this.datas[index]);
+                
+                // modifyed
+                this.sync();
+            },
         });
     </script>
 </polymer-element>

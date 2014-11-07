@@ -6,7 +6,6 @@
 <link rel='import' href='../bower_components/core-animated-pages/transitions/slide-from-right.html'>
 
 <link rel='import' href='switchyd-servers.html'>
-<link rel='import' href='switchyd-urls.html'>
 
 <polymer-element name='switchyd-main'>
     
@@ -20,10 +19,10 @@
 
         <core-animated-pages selected='{{selected}}' transitions='slide-from-right'>
             <section horizontal center-justified layout>
-                <switchyd-servers/>
+                <switchyd-servers></switchyd-servers>
             </section>
             <section horizontal center-justified layout>
-                <switchyd-urls tracer='proxy'/>
+                <div>2nd page</div>
             </section>
             <section horizontal center-justified layout>
                 <div>Third page</div>
@@ -36,7 +35,7 @@
 
     <script>
         Polymer('switchyd-main',{
-            selected : 1              
+            selected : 0              
         });
     </script>
 </polymer-element>
