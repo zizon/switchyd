@@ -1,53 +1,75 @@
 <link rel='import' href='../bower_components/polymer/polymer.html'>
 
-<link rel='import' href='../bower_components/core-list/core-list.html'>
-<link rel='import' href='../bower_components/core-field/core-field.html'>
-<link rel='import' href='../bower_components/paper-input/paper-input.html'>
-<link rel='import' href='../bower_components/paper-icon-button/paper-icon-button.html'>
-<link rel='import' href='../bower_components/paper-toast/paper-toast.html'>
+<link rel='import' href='switchyd-list.html'>
 
-<polymer-element name='switchyd-urls' attributes='tracer'>
+<polymer-element name='switchyd-urls' extends='switchyd-list'>
     <template>
-        <core-list data='{{urls}}' extraItems='{{urls.length}}'>
-            <template>
-                <core-field>
-                    <paper-input error='at least 3 level domain name' value='{{model.url}}'></paper-input> 
-                    <paper-icon-button index='{{index}}' on-tap='{{add}}' icon="add"></paper-icon-button>
-                    <paper-icon-button index='{{index}}' on-tap='{{remove}}' icon="remove"></paper-icon-button>
- 
-                </core-field>
-            </template>
-        </core-list>
+        <shadow></shadow>
     </template>
 
     <script>
         Polymer('switchyd-urls',{
-            tracer : null,
+            publish : {
+                tracer:null,
+            },
             
-            urls : [],
+            error: 'at least 3 level of domain names, like www.google.com , google.com is not accatable',
 
             ready : function(){
                 var self = this;
-                console.log(this.tracer);
                 chrome.runtime.getBackgroundPage(function(app){
                     var switchyd = app.switchyd;
-                    self.urls = switchyd.expand(switchyd.config.tracers[self.tracer]).map(
+                    self.datas = switchyd.expand(switchyd.config.tracers[self.tracer]).map(
                         function(unit){
                             return {
-                                url:unit
+                                value:unit
                             };
                         }    
                     );
+                    if(self.datas.length <= 0){
+                        self.datas.push({value:self.tracer+'.example.com'});
+                    }
                 });
             },
 
-            add:function(event,detail,sender,target){
-                var index = sender.attributes.index.value;
-                this.datas.splice(index,0,this.datas[index]);
-                
-                // modifyed
-                this.sync();
+            parse : function(input){
+                if(input.split('.').length < 2 ){
+                    return null;
+                }
+
+                return input;
             },
+            
+            sync : function(datas){
+                var self = this;
+                chrome.runtime.getBackgroundPage(function(app){
+                    var switchyd = app.switchyd;
+                    
+                    var workspace = switchyd.tracer(self.tracer+'-workspace');
+                    // reset 
+                    workspace.urls = {};
+                    datas.forEach(function(url){
+                        workspace.track(url.value);    
+                    });
+                    
+                    // compile and optimize
+                    switchyd.config.tracers[self.tracer] = switchyd.optimize(switchyd.compile(workspace));
+                    // activate
+                    switchyd.sync.save();
+                    switchyd.async.enqueue();
+                    
+                    return;
+                    // refresh
+                    self.datas = switchyd.expand(switchyd.config.tracers[self.tracer]).map(
+                        function(unit){
+                            return {
+                                value:unit
+                            };
+                        }    
+                    );
+                    console.log(self.datas);
+                });
+            }
         });
     </script>
 </polymer-element>

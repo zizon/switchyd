@@ -11,11 +11,9 @@
     "dependencies":{
         "paper-tabs":"Polymer/paper-tabs",
         "paper-toast":"Polymer/paper-toast",
-        "paper-dropdown-menu":"Polymer/paper-dropdown-menu",
         "paper-input":"Polymer/paper-input",
         "paper-button":"Polymer/paper-button",
         "polymer":"Polymer/polymer",
-        "core-header-panel":"Polymer/core-header-panel",
         "core-animated-pages":"Polymer/core-animated-pages",
         "core-list":"Polymer/core-list",
         "core-field":"Polymer/core-field",

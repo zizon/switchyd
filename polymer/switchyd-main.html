@@ -5,7 +5,10 @@
 <link rel='import' href='../bower_components/core-animated-pages/core-animated-pages.html'>
 <link rel='import' href='../bower_components/core-animated-pages/transitions/slide-from-right.html'>
 
+
 <link rel='import' href='switchyd-servers.html'>
+<link rel='import' href='switchyd-urls.html'>
+<link rel='import' href='switchyd-rules.html'>
 
 <polymer-element name='switchyd-main'>
     
@@ -22,13 +25,13 @@
                 <switchyd-servers></switchyd-servers>
             </section>
             <section horizontal center-justified layout>
-                <div>2nd page</div>
+                <switchyd-urls tracer='proxy'></switchyd-urls>
             </section>
             <section horizontal center-justified layout>
-                <div>Third page</div>
+                <switchyd-urls tracer='do_not_track'></switchyd-urls>
             </section>
             <section horizontal center-justified layout>
-                <div>Fourth page</div>
+                <switchyd-rules></switchyd-rules>
             </section>
         </core-animated-pages>
     </template>
