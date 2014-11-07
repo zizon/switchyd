@@ -1,0 +1,87 @@
+<link rel='import' href='../bower_components/polymer/polymer.html'>
+
+<link rel='import' href='../bower_components/core-list/core-list.html'>
+<link rel='import' href='../bower_components/core-field/core-field.html'>
+<link rel='import' href='../bower_components/paper-input/paper-input.html'>
+<link rel='import' href='../bower_components/paper-icon-button/paper-icon-button.html'>
+<link rel='import' href='../bower_components/paper-toast/paper-toast.html'>
+
+<polymer-element name='switchyd-list'>
+    <template>
+        <core-list data='{{datas}}' extraItems='{{datas.length}}'>        
+            <template>
+                <core-field>
+                    <paper-input error='{{error}}' index={{index}} on-change='{{change}}' value='{{model.value}}'></paper-input>
+                    <paper-icon-button index='{{index}}' on-tap='{{add}}' icon="add"></paper-icon-button>
+                    <paper-icon-button index='{{index}}' on-tap='{{remove}}' icon="remove"></paper-icon-button>
+                </core-field>
+            </template>
+        </core-list>
+        
+        <paper-toast id='toast' text='{{error}}'></paper-toast>
+    </template>
+
+    <script>
+        Polymer('switchyd-list',{
+            publish:{
+                datas : [],
+                
+                error : '',
+                
+                sync : function(datas){
+                },
+
+                parse : function(input){
+                    return input;
+                },
+                
+                stringify : function(value){
+                    return value;
+                }
+            },
+
+            change : function(event,detail,sender,target){
+                // parse
+                var value = this.parse(sender.inputValue);
+                 
+                if(value){
+                    var index = sender.attributes.index.value;
+                    sender.invalid = false;
+                    
+                    // normalize back
+                    value = this.stringify(value);
+                    sender.inputValue = value;
+
+                    // replace
+                    this.datas.splice(index,1,{value:value});
+
+                    // sync back
+                    this.sync(this.datas);
+                    return;
+                }
+                
+                // validate fail
+                sender.invalid = true;
+                this.$.toast.toggle();
+            }, 
+
+            add:function(event,detail,sender,target){
+                var index = sender.attributes.index.value;
+                var copy = {value:this.datas[index].value};
+                this.datas.splice(index,0,copy);
+                
+                // modifyed
+                this.sync(this.datas);
+            },
+
+            remove:function(event,detail,sender,target){
+                var index = sender.attributes.index.value;
+                
+                if(this.datas.length > 1){
+                    this.datas.splice(index,1);
+                    this.sync(this.datas);
+                }
+            }
+        });
+    </script>
+</polymer-element>

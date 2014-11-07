@@ -1,0 +1,22 @@
+{
+    "name":"switchyd",
+    "version":"0.0.0.1",
+    "private":true,
+    
+    "main":[
+        "polymer_option.html",
+        "polymer_option.js"
+    ],
+    
+    "dependencies":{
+        "paper-tabs":"Polymer/paper-tabs",
+        "paper-toast":"Polymer/paper-toast",
+        "paper-input":"Polymer/paper-input",
+        "paper-button":"Polymer/paper-button",
+        "polymer":"Polymer/polymer",
+        "core-animated-pages":"Polymer/core-animated-pages",
+        "core-list":"Polymer/core-list",
+        "core-field":"Polymer/core-field",
+        "core-icons":"Polymer/core-icons"
+    }
+}

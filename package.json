@@ -1,0 +1,32 @@
+{
+    "name":"switchyd-build-bot",
+    "version":"0.0.1",
+    "license" : "BSD-4-Clause",
+    "private":true,
+
+    "author":{
+        "name":"zizon",
+        "email":"zzdtsv@gmail.com"
+    },
+
+    "files":[
+        "manifest.json",
+        "proxy.js",
+        "polymer_option.html",
+        "README.md",
+        "bower.json",
+        "Gruntfile.js"
+    ],
+
+    "repository":{
+        "type":"git",
+        "url":"https://github.com/zizon/switchyd.git"
+    },
+
+    "dependencies":{
+        "grunt":"*",
+        "vulcanize":"*",
+        "grunt-vulcanize":"*",
+        "grunt-contrib-watch":"*"
+    }
+}

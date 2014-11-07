@@ -1,0 +1,79 @@
+<link rel='import' href='../bower_components/polymer/polymer.html'>
+
+<link rel='import' href='switchyd-list.html'>
+
+<polymer-element name='switchyd-servers' extends='switchyd-list'>
+    <template>
+        <shadow></shadow>
+    </template>
+
+    <script>
+        Polymer('switchyd-servers',{
+            error:'example: PROXY 127.0.0.1:10086 or SOCKS5 127.0.0.1:10087',
+            
+            ready:function(){
+                var self = this;
+                chrome.runtime.getBackgroundPage(function(app){
+                    // need to replicate it.
+                    // direct assign may lead to some bugs?
+                    // chrome seems to seperate option page and background page in diffrenet sandbox,so observer on a `share` object would `actually` replicate.
+                    // two identical observe function will trigger with different context
+                    self.datas = app.switchyd.config.servers.map(function(value){
+                        return {
+                            value:self.stringify(value)
+                        }    
+                    });
+                });
+            },
+            
+            stringify:function(value){
+                return value.type.toUpperCase() + ' ' + value.ip + ':' + value.port;
+            },
+
+            parse:function(raw){
+                // trim
+                raw = raw.trim()
+                
+                // find indicator 
+                var space = raw.indexOf(' ');
+                if( space == -1 ){
+                    return null;
+                }
+                
+                // parse type
+                var type = raw.substr(0,space);
+                
+                // server 
+                var server = raw.substr(space).trim().split(':').map(function(item){
+                    return item.trim();
+                });
+                
+                if(server.length != 2){
+                    return null;
+                }
+                
+                return {
+                    type:type.toUpperCase(),
+                    ip:server[0],
+                    port:server[1],
+                };
+            },
+            
+            sync:function(datas){
+                var self = this;
+                chrome.runtime.getBackgroundPage(function(app){
+                    var switchyd = app.switchyd; 
+                    switchyd.config.servers = datas.map(function(unit){
+                        return self.parse(unit.value);    
+                    });
+                    
+                    // persist
+                    switchyd.sync.save();
+
+                    // apply change
+                    switchyd.async.enqueue();
+                });
+            }
+        });
+    </script>
+</polymer-element>

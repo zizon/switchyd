@@ -1,0 +1,44 @@
+<link rel='import' href='../bower_components/polymer/polymer.html'>
+
+<link rel='import' href='../bower_components/paper-tabs/paper-tabs.html'>
+<link rel='import' href='../bower_components/paper-toast/paper-toast.html'>
+<link rel='import' href='../bower_components/core-animated-pages/core-animated-pages.html'>
+<link rel='import' href='../bower_components/core-animated-pages/transitions/slide-from-right.html'>
+
+
+<link rel='import' href='switchyd-servers.html'>
+<link rel='import' href='switchyd-urls.html'>
+<link rel='import' href='switchyd-rules.html'>
+
+<polymer-element name='switchyd-main'>
+    
+    <template>
+        <paper-tabs selected='{{selected}}'>
+            <paper-tab>Servers</paper-tab>
+            <paper-tab>Proxys</paper-tab>
+            <paper-tab>Excluded</paper-tab>
+            <paper-tab>Hooks</paper-tab>
+        </paper-tabs>
+
+        <core-animated-pages selected='{{selected}}' transitions='slide-from-right'>
+            <section horizontal center-justified layout>
+                <switchyd-servers></switchyd-servers>
+            </section>
+            <section horizontal center-justified layout>
+                <switchyd-urls tracer='proxy'></switchyd-urls>
+            </section>
+            <section horizontal center-justified layout>
+                <switchyd-urls tracer='do_not_track'></switchyd-urls>
+            </section>
+            <section horizontal center-justified layout>
+                <switchyd-rules></switchyd-rules>
+            </section>
+        </core-animated-pages>
+    </template>
+
+    <script>
+        Polymer('switchyd-main',{
+            selected : 0              
+        });
+    </script>
+</polymer-element>
