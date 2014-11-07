@@ -1,4 +1,5 @@
 <link rel='import' href='../bower_components/polymer/polymer.html'>
+
 <link rel='import' href='../bower_components/core-list/core-list.html'>
 <link rel='import' href='../bower_components/core-field/core-field.html'>
 <link rel='import' href='../bower_components/paper-input/paper-input.html'>
@@ -9,9 +10,9 @@
 <polymer-element name='switchyd-servers'>
     <template>
         <!-- server list -->
-        <core-list id='t' data='{{datas}}'>
+        <core-list data='{{datas}}'>
             <template>
-            <core-field on-core-select='{{}}'>
+                <core-field>
                     <paper-input error='example: PROXY 127.0.0.1:10086 or SOCKS5 127.0.0.1:10087' index={{index}} on-change='{{change}}' value='{{model.type}} {{model.ip}}:{{model.port}}'></paper-input>
                     <paper-icon-button index='{{index}}' on-tap='{{add}}' icon="add"></paper-icon-button>
                     <paper-icon-button index='{{index}}' on-tap='{{remove}}' icon="remove"></paper-icon-button>
@@ -24,38 +25,28 @@
     </template>
 
     <script>
-        Polymer({
+        Polymer('switchyd-servers',{
             datas:[],
+            
+            ok : false,
+
             ready:function(){
-                console.log('v13');
                 var self = this;
                 chrome.runtime.getBackgroundPage(function(app){
-                    self.datas = app.switchyd.config.servers;
-                    var data=[
-                        {
-                            type:'SOCKS5',
-                            ip:'127.0.0.3',
-                            port:10086
-                        }
-                    ];
-                    //app.switchyd.config.servers = data;
-                    //self.datas = app.switchyd.config.servers
+                    // need to replicate it.
+                    // direct assign may lead to some bugs?
+                    // chrome seems to seperate option page and background page in diffrenet sandbox,so observer on a `share` object would `actually` replicate.
+                    // two identical observe function will trigger with different context
+                    self.datas = app.switchyd.config.servers.map(function(unit){
+                        return unit;    
+                    });
+
+                    self.ok = true;
                 });
-                /* 
-                this.datas=[
-                    {
-                        type:'SOCKS5',
-                        ip:'127.0.0.1',
-                        port:10086
-                    }
-                ];
-                */
             },
             
             datasChanged:function(old,now){
-                console.log('-------v9');
-                console.log(old);
-                console.log(now);
+                this.sync();
             },
 
             add:function(event,detail,sender,target){
@@ -63,7 +54,7 @@
                 this.datas.splice(index,0,this.datas[index]);
                 
                 // modifyed
-                //this.sync();
+                this.sync();
             },
 
             remove:function(event,detail,sender,target){
@@ -71,8 +62,7 @@
                 
                 if(this.datas.length > 1){
                     this.datas.splice(index,1);
-                    // modified
-                    //this.sync();
+                    this.sync();
                 }
             },
             
@@ -121,9 +111,8 @@
                     // since parse change type to upper case in which the orign type might also in upper case meanwhile the input value typed would be in lower case.
                     // so correct it here
                     sender.inputValue = parsed.type + ' ' + parsed.ip + ':' + parsed.port; 
-                    sender.commit();
                     
-                    //this.sync();
+                    this.sync();
                     return;
                 }
                 
@@ -134,7 +123,10 @@
             sync:function(){
                 var self = this; 
                 chrome.runtime.getBackgroundPage(function(app){
-                    switchyd.config.servers = this.datas;
+                    var switchyd = app.switchyd; 
+                    switchyd.config.servers = self.datas.map(function(unit){
+                        return unit;        
+                    });
 
                     // persist
                     switchyd.sync.save();
@@ -142,16 +134,10 @@
                     // apply change
                     switchyd.async.enqueue();
                     
-                    self.$.toast.show();
+                    if(ok){
+                        self.$.toast.show();
+                    }
                 });
-            },
-
-            hook:function(event,detail,sender,target){
-                
-                console.log(event);
-                console.log(detail);
-                console.log(sender);
-                console.log(target);
             }
         });
     </script>

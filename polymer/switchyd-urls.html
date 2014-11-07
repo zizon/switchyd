@@ -1,0 +1,31 @@
+<link rel='import' href='../bower_components/polymer/polymer.html'>
+
+<link rel='import' href='../bower_components/core-list/core-list.html'>
+
+<polymer-element name='switchyd-urls'>
+    <template>
+        <core-list data='{{datas}}'>
+            <template>
+                <core-field>
+                    <paper-input error='at least 3 level domain name'></paper-input> 
+                </core-field>
+            </template>
+        </core-list>
+    </template>
+
+    <script>
+        Polymer('switchyd-urls',{
+            datas : [],
+            
+            tracer : null,
+
+            ready : function(){
+                var self = this; 
+                chrome.runtime.getBackgroundPage(function(app){
+                    var switchyd = app.switchyd.config.tracers[];
+                    var urls = switchyd
+                });
+            }
+        });
+    </script>
+</polymer-element>
