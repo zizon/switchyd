@@ -1,44 +1,138 @@
 <link rel='import' href='../bower_components/polymer/polymer.html'>
 
-<link rel='import' href='../bower_components/paper-tabs/paper-tabs.html'>
-<link rel='import' href='../bower_components/paper-toast/paper-toast.html'>
-<link rel='import' href='../bower_components/core-animated-pages/core-animated-pages.html'>
-<link rel='import' href='../bower_components/core-animated-pages/transitions/slide-from-right.html'>
+<link rel='import' href='../bower_components/paper-styles/paper-styles.html'>
+<link rel='import' href='../bower_components/paper-drawer-panel/paper-drawer-panel.html'>
+<link rel='import' href='../bower_components/paper-material/paper-material.html'>
+<link rel='import' href='../bower_components/paper-menu/paper-menu.html'>
+<link rel='import' href='../bower_components/paper-item/paper-item.html'>
+<link rel='import' href='../bower_components/paper-button/paper-button.html'>
+<link rel='import' href='../bower_components/neon-animation/neon-animation.html'>
+<link rel='import' href='../polymer/switchyd-servers.html'>
+<link rel='import' href='../polymer/switchyd-urls.html'>
+<link rel='import' href='../polymer/switchyd-rules.html'>
+<link rel='import' href='../polymer/switchyd-about.html'>
 
-
-<link rel='import' href='switchyd-servers.html'>
-<link rel='import' href='switchyd-urls.html'>
-<link rel='import' href='switchyd-rules.html'>
-
-<polymer-element name='switchyd-main'>
+<dom-module id='switchyd-main'>
     
     <template>
-        <paper-tabs selected='{{selected}}'>
-            <paper-tab>Servers</paper-tab>
-            <paper-tab>Proxys</paper-tab>
-            <paper-tab>Excluded</paper-tab>
-            <paper-tab>Hooks</paper-tab>
-        </paper-tabs>
+        <paper-drawer-panel>
+            <paper-material drawer>
+                <div id='title'>
+                    <paper-item>Switchyd </paper-item>
+                </div>
+                
+                <div id='menu'>
+                    <paper-menu selected='{{selected}}' attr-for-selected='tab'>
+                        <template is='dom-repeat' items='{{_tabs}}' as='name'>
+                            <paper-item tab='{{name}}'>
+                                <paper-button>{{name}}</paper-button>
+                            </paper-item>
+                        </template>
+                    </paper-menu>
+                </div>
+            </paper-material>
 
-        <core-animated-pages selected='{{selected}}' transitions='slide-from-right'>
-            <section horizontal center-justified layout>
-                <switchyd-servers></switchyd-servers>
-            </section>
-            <section horizontal center-justified layout>
-                <switchyd-urls tracer='proxy'></switchyd-urls>
-            </section>
-            <section horizontal center-justified layout>
-                <switchyd-urls tracer='do_not_track'></switchyd-urls>
-            </section>
-            <section horizontal center-justified layout>
-                <switchyd-rules></switchyd-rules>
-            </section>
-        </core-animated-pages>
+            <paper-material main> 
+                <iron-selector selected='{{selected}}' attr-for-selected='tab'>    
+                    <switchyd-servers tab='Servers'></switchyd-servers>
+                    <switchyd-urls tab='Proxys'></switchyd-urls>
+                    <switchyd-urls tab='WihteList' tracer='do_not_track'></switchyd-urls>
+                    <switchyd-rules tab='Rules'></switchyd-rules>
+                    <switchyd-about tab='About'></switchyd-about>
+                </iron-selector>
+            </paper-material>
+        </paper-drawer-panel>
     </template>
+    
+    <style>
+        paper-button {
+            color:var(--google-blue-500);
+            text-align:left;
+        }
+
+        #title > paper-item {
+            @apply(--paper-font-title); 
+            color:var(--paper-indigo-500);
+        }
+
+        paper-material[main] > iron-selector > *:not(.iron-selected){
+            display: none !important;
+        }
+    </style>
 
     <script>
-        Polymer('switchyd-main',{
-            selected : 0              
+        'use strict';
+        Polymer({
+            is : 'switchyd-main',
+            
+            properties : {
+                selected : {
+                    type: String,
+                    
+                    // TODO
+
+                    observer:'_selected_changed',
+                },
+
+                animationConfig : {
+                    type : Object,
+
+                    value : {},
+                },
+            },
+            
+            behaviors : [
+                Polymer.NeonAnimationRunnerBehavior
+            ],
+ 
+            ready : function(){
+                var tabs = [];
+                var nodes = this.querySelectorAll('*[main] *[tab]');
+                for( var i=0; i<nodes.length; i++ ){
+                    tabs.push(nodes[i].attributes['tab'].value);
+                }
+                
+                this.set('selected',tabs[0]);
+                this.set('_tabs',tabs);
+
+                this._playReadyAnimation();
+            },
+            
+            _tabs : [],
+
+            _playReadyAnimation : function(){
+                var animation_key = 'ready-animation';
+                if( !(animation_key in this.animationConfig) ){
+                    var self = this;
+                    this.animationConfig[animation_key] = [
+                        {
+                            name : 'fade-in-animation',
+                            node : self.$.title,
+                        },
+
+                        {
+                            name : 'slide-from-left-animation',
+                            node : self.$.menu,
+                        },
+                    ];
+                }
+
+                this.playAnimation(animation_key);
+            },
+
+            _selected_changed : function(new_value,old_value){
+                var node = this.$$('iron-selector > *[tab='+new_value+']');
+                node && node.ready && node.ready();
+                node && node.playActiveAnimation && node.playActiveAnimation();
+            },
+            
+            _tabs : function(){
+                return Object.keys(this._pages);
+            },
+
+            _switch: function(event){
+                this._pages[event.currentTarget.id]();
+            },
         });
     </script>
-</polymer-element>
+</dom-module>

@@ -1,79 +1,106 @@
 <link rel='import' href='../bower_components/polymer/polymer.html'>
 
-<link rel='import' href='switchyd-list.html'>
+<link rel='import' href='../polymer/switchyd-list-page.html'>
+<link rel='import' href='../polymer/switchyd-active-page-animaiton-behavior.html'>
 
-<polymer-element name='switchyd-servers' extends='switchyd-list'>
+<dom-module id='switchyd-servers'>
+    
     <template>
-        <shadow></shadow>
+        <switchyd-list-page id='page'
+            items='{{_servers}}'
+            notification='Proxy Server Config Save & Applied'
+            on-start-sync='_sync'>
+Note: Set proxy servers here.
+
+Example:
+*  SOCKS5 127.0.0.1:10086 
+> proxy via local port 10086,using *SOCKS5* 
+
+*  PROXY 192.168.1.179:80 
+> proxy via a *HTTP/HTTPS/SPDY* proxy,using given server ip and port 
+        </switchyd-list-page>
     </template>
 
     <script>
-        Polymer('switchyd-servers',{
-            error:'example: PROXY 127.0.0.1:10086 or SOCKS5 127.0.0.1:10087',
+        'use strict';
+        Polymer({
+            is : 'switchyd-servers',
             
-            ready:function(){
+            behaviors : [SwitchydActivePageAnimationBehaviro],
+            
+            ready : function(){
                 var self = this;
-                chrome.runtime.getBackgroundPage(function(app){
-                    // need to replicate it.
-                    // direct assign may lead to some bugs?
-                    // chrome seems to seperate option page and background page in diffrenet sandbox,so observer on a `share` object would `actually` replicate.
-                    // two identical observe function will trigger with different context
-                    self.datas = app.switchyd.config.servers.map(function(value){
-                        return {
-                            value:self.stringify(value)
-                        }    
-                    });
+                chrome.runtime.getBackgroundPage(function(page){
+                    self._reloadServers(page.switchyd);
                 });
-            },
-            
-            stringify:function(value){
-                return value.type.toUpperCase() + ' ' + value.ip + ':' + value.port;
             },
 
-            parse:function(raw){
-                // trim
-                raw = raw.trim()
-                
-                // find indicator 
-                var space = raw.indexOf(' ');
-                if( space == -1 ){
-                    return null;
-                }
-                
-                // parse type
-                var type = raw.substr(0,space);
-                
-                // server 
-                var server = raw.substr(space).trim().split(':').map(function(item){
-                    return item.trim();
-                });
-                
-                if(server.length != 2){
-                    return null;
-                }
-                
-                return {
-                    type:type.toUpperCase(),
-                    ip:server[0],
-                    port:server[1],
-                };
-            },
+            _servers : [],
             
-            sync:function(datas){
-                var self = this;
-                chrome.runtime.getBackgroundPage(function(app){
-                    var switchyd = app.switchyd; 
-                    switchyd.config.servers = datas.map(function(unit){
-                        return self.parse(unit.value);    
+            _reloadServers : function(switchyd){
+                // ensure not empty
+                if(switchyd.config.servers.length < 1){
+                    page.switchyd.config.servers.push({
+                        type : 'SOCKS5',
+                        ip : '127.0.0.1',
+                        port : 10086,
                     });
+                }
+                
+                this._servers = switchyd.config.servers.map(function(item){
+                    return item.type + ' ' +  item.ip + ':' + item.port;
+                });
+            },
+
+            _sync : function(event){
+                // parse config
+                var configs = this._servers.map(function(item){
+                    var tuple = item.trim().split(' ');
                     
-                    // persist
-                    switchyd.sync.save();
+                    if(tuple.length != 2){
+                        console.warn('server config should in the form "PROTOCOL IP:PORT",'+'but got:'+item);
+                        return undefined;
+                    }
 
-                    // apply change
-                    switchyd.async.enqueue();
+                    // parse type
+                    var type = tuple[0].toUpperCase();
+                    
+                    // parse ip
+                    var ip_and_port = tuple[1].split(':');
+                    
+                    // prepared
+                    var ip = ip_and_port[0];
+                    
+                    // check if port presented
+                    if(ip_and_port.length < 2 || ip_and_port[1].trim().length == 0){
+                        // no port
+                        return {
+                            type : type,
+                            ip : ip,
+                            port : 80,
+                        };
+                    }else{
+                        return {
+                            type : type,
+                            ip : ip,
+                            port : ip_and_port[1],
+                        }
+                    }
+                }).filter(function(item){ return item !== undefined});
+                
+                var self = this;
+                // sync config
+                chrome.runtime.getBackgroundPage(function(page){
+                    page.switchyd.config.servers = configs;
+                    
+                    // notify sync done
+                    self.$.page.syncDone();
+            
+                    // show toast
+                    page.switchyd.sync.save();
                 });
             }
         });
     </script>
-</polymer-element>
+</dom-module>
+

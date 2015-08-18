@@ -5,7 +5,7 @@ module.exports = function(grunt) {
         vulcanize: {
             default : {
                 options : {
-                    csp : true
+                    csp : "polymer_option.js"
                 },
 
                 files : {

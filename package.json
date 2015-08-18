@@ -1,6 +1,6 @@
 {
     "name":"switchyd-build-bot",
-    "version":"0.0.1",
+    "version":"0.0.2",
     "license" : "BSD-4-Clause",
     "private":true,
 
@@ -24,9 +24,7 @@
     },
 
     "dependencies":{
-        "grunt":"*",
-        "vulcanize":"*",
-        "grunt-vulcanize":"*",
-        "grunt-contrib-watch":"*"
+        "grunt-vulcanize":"latest",
+        "grunt-contrib-watch":"latest"
     }
 }

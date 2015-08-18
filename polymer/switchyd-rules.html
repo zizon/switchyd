@@ -1,65 +1,70 @@
 <link rel='import' href='../bower_components/polymer/polymer.html'>
 
-<link rel='import' href='switchyd-list.html'>
+<link rel='import' href='../polymer/switchyd-list-page.html'>
+<link rel='import' href='../polymer/switchyd-active-page-animaiton-behavior.html'>
 
-<polymer-element name='switchyd-rules' extends='switchyd-list'>
+<dom-module id='switchyd-rules'>
     <template>
-        <shadow></shadow>
+        <switchyd-list-page id='page'
+            items='{{_rules}}'
+            notification='Inception Rules Save & Applied'
+            on-start-sync='_sync'>
+Note: Network failues that considered to be solved by adding sites to proxy list.
+
+Example:
+* net::ERR_CONNECTION_RESET 
+> the commonly seen GFW caused failue 
+        </switchyd-list-page>
     </template>
     
     <script>
-        Polymer('switchyd-rules',{
-            error : 'shoule start with net::',
+        Polymer({
+            is : 'switchyd-rules',
+
+            behaviors : [SwitchydActivePageAnimationBehaviro],
 
             ready : function(){
                 var self = this;
-
-                chrome.runtime.getBackgroundPage(function(app){
-                    var switchyd = app.switchyd;
-                    
-                    var rules = [];
-                    for(var rule in switchyd.config.rules){
-                        rules.push({value:rule});
-                    }
-                    
-                    self.datas = rules;
-                    if(self.datas.length <= 0){
-                        self.datas.push({value:'net::ERR_EXAMPLE'});
-                    }
+                chrome.runtime.getBackgroundPage(function(page){
+                    self._reloadRules(page.switchyd);
                 });
             },
-
-            parse : function(input){
-                if(input.startsWith('net::')){
-                    return input;
+            
+            _reloadRules : function(switchyd){
+                var rules = [];
+                for(var rule in switchyd.config.rules){
+                    rules.push(rule);
                 }
 
-                return null;
+                if( rules.length <= 0 ){
+                    rules = ['net::ERR_CONNECTION_RESET'];
+                }
+
+                this._rules = rules;
             },
+            
+            _rules : [],
+            
+            _sync : function(){
+                var rules = {
+                    'net::ERR_CONNECTION_RESET':0, 
+                };
 
-            sync : function(datas){
-                var self = this;
-                chrome.runtime.getBackgroundPage(function(app){
-                    var switchyd = app.switchyd;
-
-                    // build new rules
-                    var new_rules = {};
-                    datas.forEach(function(rule){
-                        rule = rule.value;
-                        if(rule in switchyd.config.rules){
-                            new_rules[rule] = switchyd.config.rules[rule];
-                            delete switchyd.config.rules[rule];
-                            return;
-                        }
-
-                        new_rules[rule] = 0;
-                    });
-
-                    // replace
-                    switchyd.config.rules = new_rules;
+                this._rules.forEach(function(rule){
+                    rules[rule]=0;
                 });
-            }
+                
+                var self = this;
+                chrome.runtime.getBackgroundPage(function(page){
+                    var switchyd = page.switchyd;
+                    switchyd.config.rules = rules;
+
+                    switchyd.sync.save();
+
+                    self.$.page.syncDone();
+                });
+            },
         });
     </script>
-</polymer-element>
+</dom-module>
 

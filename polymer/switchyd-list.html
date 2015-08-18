@@ -1,87 +1,169 @@
 <link rel='import' href='../bower_components/polymer/polymer.html'>
 
-<link rel='import' href='../bower_components/core-list/core-list.html'>
-<link rel='import' href='../bower_components/core-field/core-field.html'>
+<link rel='import' href='../bower_components/paper-styles/paper-styles.html'>
 <link rel='import' href='../bower_components/paper-input/paper-input.html'>
+<link rel='import' href='../bower_components/iron-icons/iron-icons.html'>
 <link rel='import' href='../bower_components/paper-icon-button/paper-icon-button.html'>
-<link rel='import' href='../bower_components/paper-toast/paper-toast.html'>
+<link rel='import' href='../bower_components/neon-animation/neon-animation.html'>
+<link ref='import' href='../bower_components/iron-flex-layout/iron-flex-layout.html'>
 
-<polymer-element name='switchyd-list'>
+<dom-module id='switchyd-list'>
+
     <template>
-        <core-list data='{{datas}}' extraItems='{{datas.length}}'>        
-            <template>
-                <core-field>
-                    <paper-input error='{{error}}' index={{index}} on-change='{{change}}' value='{{model.value}}'></paper-input>
-                    <paper-icon-button index='{{index}}' on-tap='{{add}}' icon="add"></paper-icon-button>
-                    <paper-icon-button index='{{index}}' on-tap='{{remove}}' icon="remove"></paper-icon-button>
-                </core-field>
+        <div id='container'>
+            <template is='dom-repeat' items={{items}}>
+                <div index='{{index}}'>
+                        <paper-icon-button icon='add' on-click='_add_row'></paper-icon-button>
+                        <paper-icon-button disabled='{{!_removable}}' icon='remove' on-click='_remove_row'></paper-icon-button>
+                        <paper-input value='{{item}}'></paper-input>
+                </div>
             </template>
-        </core-list>
-        
-        <paper-toast id='toast' text='{{error}}'></paper-toast>
+        </div>
     </template>
+    
+    <style>
+        paper-icon-button {
+            color: var(--google-blue-500);
+        }
+        
+        paper-icon-button[disabled] {
+            color: var(--google-grey-500);
+        }
+
+        paper-input {
+            display: inline-block;
+            min-width: 80%;
+        }
+
+        #container {
+            height: 60vh;
+            @apply(--layout-scroll);
+        }
+    </style>
 
     <script>
-        Polymer('switchyd-list',{
-            publish:{
-                datas : [],
-                
-                error : '',
-                
-                sync : function(datas){
-                },
+        'use strict';
+        
+        Polymer({
+            is : 'switchyd-list',
 
-                parse : function(input){
-                    return input;
-                },
-                
-                stringify : function(value){
-                    return value;
-                }
-            },
-
-            change : function(event,detail,sender,target){
-                // parse
-                var value = this.parse(sender.inputValue);
-                 
-                if(value){
-                    var index = sender.attributes.index.value;
-                    sender.invalid = false;
+            properties : { 
+                items : {
+                    type : Array,
                     
-                    // normalize back
-                    value = this.stringify(value);
-                    sender.inputValue = value;
+                    notify : true,
+                },
 
-                    // replace
-                    this.datas.splice(index,1,{value:value});
-
-                    // sync back
-                    this.sync(this.datas);
-                    return;
-                }
-                
-                // validate fail
-                sender.invalid = true;
-                this.$.toast.toggle();
-            }, 
-
-            add:function(event,detail,sender,target){
-                var index = sender.attributes.index.value;
-                var copy = {value:this.datas[index].value};
-                this.datas.splice(index,0,copy);
-                
-                // modifyed
-                this.sync(this.datas);
+                animationConfig : {
+                    type : Object,
+                    
+                    value : {},
+                },
             },
 
-            remove:function(event,detail,sender,target){
-                var index = sender.attributes.index.value;
+            observers : [
+                '_itemsChanged(items.splices)',
+            ],
+            
+            behaviors : [
+                Polymer.NeonAnimationRunnerBehavior
+            ],
+
+            ready : function(){
+            },
+
+            _removable : false,
+            
+            _add_row : function(event){
+                var index = event.model.index + 1;
                 
-                if(this.datas.length > 1){
-                    this.datas.splice(index,1);
-                    this.sync(this.datas);
-                }
-            }
+                // remove it
+                this.splice('items', index , 0,''+event.model.item);
+                
+                // items changed,but still,dom is not ready until at this end of microtask.
+                // dom creation is queue in debounce/async callbacks.
+                // so queue animation after it.
+                var self = this;
+                this.async(function(){
+                    self._playItemAddAnimation(index);
+                });
+            },
+
+            _remove_row : function(event){
+                var index = event.model.index;
+                var self = this;
+                
+
+                // a bit odd here.
+                // if remove items here, a dom removal will also be queue.
+                // then there is no changce that , in animation, could do anything with the
+                // old items.(items changed,and dom is removed,no context for what happended when try playing animation).
+                // so, queue model changed,and then queue animation.
+                // in this case ,a async/debounce queue will be look like this:
+                // model change -> play animation -> dom changed.
+                // when playing animation,an old dom tree was keep,though the model is changed.
+                this._playItemRemoveAnimation(index);
+                
+                // delay removal
+                // tune async delays to make removal happend in next microtask.
+                // it makes animation smoother.
+                this.async(function(){
+                    self.splice('items',index,1);
+                },500);
+            },
+        
+            _itemsChanged : function(event){
+                var items = this.get('items');
+                this.set('_removable',items.length > 1);
+            },
+            
+            _indexToElement : function(index){
+                return this.$.container.children[index];
+            },
+
+            _playItemAddAnimation : function(index){
+                var animation_key = 'add-animation-'+index;
+                var self = this;
+                this.debounce(animation_key,function(){
+                    var animactions = [];
+                    self.get('items').forEach(function(item,trace_index){
+                        if(trace_index >= index){
+                            animactions.push({
+                                name : 'slide-down-animation',
+                                node : self._indexToElement(trace_index),
+                            });
+                        }
+                    });
+                    
+                    self.animationConfig[animation_key] = animactions;
+                    self.playAnimation(animation_key);
+                });
+            },
+ 
+            _playItemRemoveAnimation : function(index){
+                var animation_key = 'remove-animation-'+index;
+                var self = this;
+                this.debounce(animation_key,function(){
+                    var animactions = [];
+                    for(var trace_index = 0; trace_index< self.$.container.children.length - 1; trace_index++){
+                        if(trace_index > index){
+                            animactions.push({
+                                name : 'slide-up-animation',
+                                node : self._indexToElement(trace_index),
+                            });
+                        }
+                        if( trace_index == index ){
+                            animactions.push({
+                               name : 'fade-out-animation',
+                               node : self._indexToElement(trace_index),
+                            });
+                        }
+                    };
+
+                    self.animationConfig[animation_key] = animactions;
+                    self.playAnimation(animation_key);
+                });
+            },           
         });
     </script>
-</polymer-element>
+</dom-moudle>

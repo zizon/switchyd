@@ -1,75 +1,81 @@
 <link rel='import' href='../bower_components/polymer/polymer.html'>
 
-<link rel='import' href='switchyd-list.html'>
+<link rel='import' href='../polymer/switchyd-list-page.html'>
+<link rel='import' href='../polymer/switchyd-active-page-animaiton-behavior.html'>
 
-<polymer-element name='switchyd-urls' extends='switchyd-list'>
+<dom-module id='switchyd-urls'>
+    
     <template>
-        <shadow></shadow>
+        <switchyd-list-page id='page'
+            items='{{_urls}}'
+            notification='Host/Site/URL Config Save & Applied'
+            on-start-sync='_sync'>
+Note: Current proxy/whitelist sits here.
+
+Example:
+* www.google.com 
+> fully qulified sites
+
+* *.google.com
+> match sits that ends with google.com
+> proxy via a *HTTP/HTTPS/SPDY* proxy,using given server ip and port 
+        </switchyd-list-page>
     </template>
 
     <script>
-        Polymer('switchyd-urls',{
-            publish : {
-                tracer:null,
-            },
+        Polymer({
+            is : 'switchyd-urls',    
             
-            error: 'at least 3 level of domain names, like www.google.com , google.com is not accatable',
+            properties : {
+                tracer : {
+                    type : String,
 
+                    value : 'proxy',
+                }
+            },
+
+            behaviors : [SwitchydActivePageAnimationBehaviro],
+            
             ready : function(){
                 var self = this;
-                chrome.runtime.getBackgroundPage(function(app){
-                    var switchyd = app.switchyd;
-                    self.datas = switchyd.expand(switchyd.config.tracers[self.tracer]).map(
-                        function(unit){
-                            return {
-                                value:unit
-                            };
-                        }    
-                    );
-                    if(self.datas.length <= 0){
-                        self.datas.push({value:self.tracer+'.example.com'});
-                    }
+                chrome.runtime.getBackgroundPage(function(page){
+                    self._reloadURLs(page.switchyd);
                 });
             },
-
-            parse : function(input){
-                if(input.split('.').length < 2 ){
-                    return null;
+            
+            _urls : [],
+            
+            _reloadURLs : function(switchyd){
+                var urls = switchyd.expand(switchyd.config.tracers[this.tracer]);
+                
+                // ensure urls not empty
+                if( urls.length <= 0 ){
+                    urls = [ this.tracer + '.google.com' ];
                 }
 
-                return input;
+                this._urls = urls;
             },
-            
-            sync : function(datas){
+
+            _sync : function(){
                 var self = this;
-                chrome.runtime.getBackgroundPage(function(app){
-                    var switchyd = app.switchyd;
-                    
+                chrome.runtime.getBackgroundPage(function(page){
+                    var switchyd = page.switchyd;
+
                     var workspace = switchyd.tracer(self.tracer+'-workspace');
-                    // reset 
                     workspace.urls = {};
-                    datas.forEach(function(url){
-                        workspace.track(url.value);    
+                    self._urls.forEach(function(url){
+                        workspace.track(url);
                     });
-                    
+
                     // compile and optimize
                     switchyd.config.tracers[self.tracer] = switchyd.optimize(switchyd.compile(workspace));
                     // activate
                     switchyd.sync.save();
                     switchyd.async.enqueue();
-                    
-                    return;
-                    // refresh
-                    self.datas = switchyd.expand(switchyd.config.tracers[self.tracer]).map(
-                        function(unit){
-                            return {
-                                value:unit
-                            };
-                        }    
-                    );
-                    console.log(self.datas);
+
+                    self.$.page.syncDone();
                 });
-            }
+            },
         });
     </script>
-</polymer-element>
+</dom-module>
