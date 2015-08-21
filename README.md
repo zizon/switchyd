@@ -13,7 +13,8 @@ What this does is detect certain failures and try to fix it automaticly, by addi
 
 currently,failures like:
 - net::ERR_CONNECTION_RESET  
-- net::ERR_CONNECTION_ABORTED  
+- net::ERR_CONNECTION_TIMED_OUT  
+- net::ERR_TIMED_OUT
 - net::ERR_SSL_PROTOCOL_ERROR  
 
 will be regonized fixable.
