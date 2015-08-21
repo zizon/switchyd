@@ -24,9 +24,9 @@ the extension require permissions of:
 
 - webRequest
 - proxy  
-- <all_urls>
+- all_urls
 
-webRequest and <all_urls> are required for extension to inspect all traffics.  
+webRequest and all_urls are required for extension to inspect all traffics.  
 proxy ,of course, allows the extension to access chrome the proxy functionality. 
 
 License
