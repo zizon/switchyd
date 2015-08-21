@@ -1,7 +1,6 @@
 {
   "name": "switchyd",
   "version": "0.0.1.0",
-  "private": true,
   "main": [
     "polymer_option.html",
     "polymer_option.js"
@@ -22,6 +21,18 @@
     "paper-fab": "PolymerElements/paper-fab#~1.0.3",
     "paper-progress": "PolymerElements/paper-progress#~1.0.2",
     "paper-toast": "PolymerElements/paper-toast#~1.0.0",
-    "neon-animation": "PolymerElements/neon-animation#~1.0.6",
-  }
+    "neon-animation": "PolymerElements/neon-animation#~1.0.6"
+  },
+  "homepage": "https://github.com/zizon/switchyd",
+  "authors": [
+    "zizon <zzdtsv@gmail.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
 }

@@ -1,0 +1,27 @@
+<script>
+    SwitchydActivePageAnimationBehavior = {
+        playActiveAnimation : function(){
+            this.$.page.playActiveAnimation(); 
+        },
+    };
+
+    SwitchydCommunicateBehavior = {
+        talk : function(){
+            var pendings = [];
+            return function(callback){
+                pendings.push(callback);
+                
+                this.debounce('switchyd-batch',function(){
+                    chrome.runtime.getBackgroundPage(function(page){
+                        pendings.forEach(function(pending_callback){
+                            pending_callback(page.switchyd);
+                        });
+
+                        // clear all
+                        pendings.splice(0,pendings.length);
+                    });
+                });
+            };
+        }(),
+    };
+</script>

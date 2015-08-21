@@ -8,7 +8,14 @@
         <div id='markdown'>
             <marked-element>
                 <script type="text/markdown">
-hello kitty
+### Source Code
+> [Github](https://github.com/zizon/switchyd)
+
+### Any question? Please refer to:
+*  [Gmail](zzdtsv@gmail.com)
+*  [Weibo](http://weibo.com/zizon)
+*  [Twitter](https://twitter.com/zizon)
+*  [Google+](https://plus.google.com/105261736700306348363)
                 </script>
             </marked-element>
         </div>
@@ -30,16 +37,15 @@ hello kitty
             ],
  
             playActiveAnimation : function(){
-                return;
                 var self = this;
                 var animation_key = 'play';
                 this.animationConfig[animation_key] = [
                     {
-                        name : 'fade-in-animation',
+                        name : 'slide-down-animation',
                         node : self.$.markdown,
                     }
                 ];
-                console.log('ok');
+                
                 this.playAnimation(animation_key);
             },
         });

@@ -1,7 +1,7 @@
 <link rel='import' href='../bower_components/polymer/polymer.html'>
 
 <link rel='import' href='../polymer/switchyd-list-page.html'>
-<link rel='import' href='../polymer/switchyd-active-page-animaiton-behavior.html'>
+<link rel='import' href='../polymer/switchyd-behaviors.html'>
 
 <dom-module id='switchyd-rules'>
     <template>
@@ -21,21 +21,20 @@ Example:
         Polymer({
             is : 'switchyd-rules',
 
-            behaviors : [SwitchydActivePageAnimationBehaviro],
+            behaviors : [
+                SwitchydActivePageAnimationBehavior,
+                SwitchydCommunicateBehavior,
+            ],
 
             ready : function(){
                 var self = this;
-                chrome.runtime.getBackgroundPage(function(page){
-                    self._reloadRules(page.switchyd);
+                this.talk(function(switchyd){
+                    self._reloadRules(switchyd);
                 });
             },
             
             _reloadRules : function(switchyd){
-                var rules = [];
-                for(var rule in switchyd.config.rules){
-                    rules.push(rule);
-                }
-
+                var rules = Object.keys(switchyd.tracer('inspect-error').container);
                 if( rules.length <= 0 ){
                     rules = ['net::ERR_CONNECTION_RESET'];
                 }
@@ -46,21 +45,20 @@ Example:
             _rules : [],
             
             _sync : function(){
-                var rules = {
-                    'net::ERR_CONNECTION_RESET':0, 
-                };
-
-                this._rules.forEach(function(rule){
-                    rules[rule]=0;
-                });
-                
                 var self = this;
-                chrome.runtime.getBackgroundPage(function(page){
-                    var switchyd = page.switchyd;
-                    switchyd.config.rules = rules;
+                this.talk(function(switchyd){
+                    var rules = switchyd.tracer('inspect-error');
 
-                    switchyd.sync.save();
-
+                    // clear
+                    rules.clear();
+                    
+                    // update
+                    self._rules.forEach(function(rule){
+                        rules.track(rule);
+                    });
+                    
+                    // sync
+                    switchyd.config.save();
                     self.$.page.syncDone();
                 });
             },

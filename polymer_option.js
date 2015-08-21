@@ -87,6 +87,38 @@ get: function () {
 return (document._currentScript || document.currentScript).ownerDocument;
 }
 });
+Polymer.RenderStatus = {
+_ready: false,
+_callbacks: [],
+whenReady: function (cb) {
+if (this._ready) {
+cb();
+} else {
+this._callbacks.push(cb);
+}
+},
+_makeReady: function () {
+this._ready = true;
+this._callbacks.forEach(function (cb) {
+cb();
+});
+this._callbacks = [];
+},
+_catchFirstRender: function () {
+requestAnimationFrame(function () {
+Polymer.RenderStatus._makeReady();
+});
+}
+};
+if (window.HTMLImports) {
+HTMLImports.whenReady(function () {
+Polymer.RenderStatus._catchFirstRender();
+});
+} else {
+Polymer.RenderStatus._catchFirstRender();
+}
+Polymer.ImportStatus = Polymer.RenderStatus;
+Polymer.ImportStatus.whenLoaded = Polymer.ImportStatus.whenReady;
 Polymer.Base = {
 __isPolymerInstance__: true,
 _addFeature: function (feature) {
@@ -103,16 +135,21 @@ this._doBehavior('created');
 this._initFeatures();
 },
 attachedCallback: function () {
+Polymer.RenderStatus.whenReady(function () {
 this.isAttached = true;
 this._doBehavior('attached');
+}.bind(this));
 },
 detachedCallback: function () {
 this.isAttached = false;
 this._doBehavior('detached');
 },
 attributeChangedCallback: function (name) {
-this._setAttributeToProperty(this, name);
+this._attributeChangedImpl(name);
 this._doBehavior('attributeChanged', arguments);
+},
+_attributeChangedImpl: function (name) {
+this._setAttributeToProperty(this, name);
 },
 extend: function (prototype, api) {
 if (prototype && api) {
@@ -171,6 +208,7 @@ return Boolean(obj && obj.__isPolymerInstance__);
 Polymer.telemetry.instanceCount = 0;
 (function () {
 var modules = {};
+var lcModules = {};
 var DomModule = function () {
 return document.createElement('dom-module');
 };
@@ -185,10 +223,11 @@ var id = id || this.id || this.getAttribute('name') || this.getAttribute('is');
 if (id) {
 this.id = id;
 modules[id] = this;
+lcModules[id.toLowerCase()] = this;
 }
 },
 import: function (id, selector) {
-var m = modules[id];
+var m = modules[id] || lcModules[id.toLowerCase()];
 if (!m) {
 forceDocumentUpgrade();
 m = modules[id];
@@ -200,19 +239,14 @@ return m;
 }
 });
 var cePolyfill = window.CustomElements && !CustomElements.useNative;
-if (cePolyfill) {
-var ready = CustomElements.ready;
-CustomElements.ready = true;
-}
 document.registerElement('dom-module', DomModule);
-if (cePolyfill) {
-CustomElements.ready = ready;
-}
 function forceDocumentUpgrade() {
 if (cePolyfill) {
 var script = document._currentScript || document.currentScript;
-if (script) {
-CustomElements.upgradeAll(script.ownerDocument);
+var doc = script && script.ownerDocument;
+if (doc && !doc.__customElementsForceUpgraded) {
+doc.__customElementsForceUpgraded = true;
+CustomElements.upgradeAll(doc);
 }
 }
 }
@@ -225,6 +259,9 @@ if (module.localName === 'dom-module') {
 var id = module.id || module.getAttribute('name') || module.getAttribute('is');
 this.is = id;
 }
+}
+if (this.is) {
+this.is = this.is.toLowerCase();
 }
 }
 });
@@ -513,7 +550,7 @@ debouncer.stop();
 }
 }
 });
-Polymer.version = '1.0.8';
+Polymer.version = '1.1.0';
 Polymer.Base._addFeature({
 _registerFeatures: function () {
 this._prepIs();
@@ -537,6 +574,10 @@ _prepTemplate: function () {
 this._template = this._template || Polymer.DomModule.import(this.is, 'template');
 if (this._template && this._template.hasAttribute('is')) {
 this._warn(this._logf('_prepTemplate', 'top-level Polymer template ' + 'must not be a type-extension, found', this._template, 'Move inside simple <template>.'));
+}
+if (this._template && !this._template.content && HTMLTemplateElement.bootstrap) {
+HTMLTemplateElement.decorate(this._template);
+HTMLTemplateElement.bootstrap(this._template.content);
 }
 },
 _stampTemplate: function () {
@@ -958,6 +999,14 @@ if (this.patch) {
 this.patch();
 }
 };
+if (window.wrap && Settings.useShadow && !Settings.useNativeShadow) {
+DomApi = function (node) {
+this.node = wrap(node);
+if (this.patch) {
+this.patch();
+}
+};
+}
 DomApi.prototype = {
 flush: function () {
 Polymer.dom.flush();
@@ -970,11 +1019,14 @@ Polymer.dom.addDebouncer(host.debounce('_distribute', host._distributeContent));
 },
 appendChild: function (node) {
 var handled;
+this._ensureContentLogicalInfo(node);
 this._removeNodeFromHost(node, true);
 if (this._nodeIsInLogicalTree(this.node)) {
 this._addLogicalInfo(node, this.node);
 this._addNodeToHost(node);
 handled = this._maybeDistribute(node, this.node);
+} else {
+this._addNodeToHost(node);
 }
 if (!handled && !this._tryRemoveUndistributedNode(node)) {
 var container = this.node._isShadyRoot ? this.node.host : this.node;
@@ -988,9 +1040,9 @@ if (!ref_node) {
 return this.appendChild(node);
 }
 var handled;
+this._ensureContentLogicalInfo(node);
 this._removeNodeFromHost(node, true);
 if (this._nodeIsInLogicalTree(this.node)) {
-saveLightChildrenIfNeeded(this.node);
 var children = this.childNodes;
 var index = children.indexOf(ref_node);
 if (index < 0) {
@@ -999,6 +1051,8 @@ throw Error('The ref_node to be inserted before is not a child ' + 'of this node
 this._addLogicalInfo(node, this.node, index);
 this._addNodeToHost(node);
 handled = this._maybeDistribute(node, this.node);
+} else {
+this._addNodeToHost(node);
 }
 if (!handled && !this._tryRemoveUndistributedNode(node)) {
 ref_node = ref_node.localName === CONTENT ? this._firstComposedNode(ref_node) : ref_node;
@@ -1016,6 +1070,8 @@ var handled;
 if (this._nodeIsInLogicalTree(this.node)) {
 this._removeNodeFromHost(node);
 handled = this._maybeDistribute(node, this.node);
+} else {
+this._removeNodeFromHost(node);
 }
 if (!handled) {
 var container = this.node._isShadyRoot ? this.node.host : this.node;
@@ -1030,6 +1086,9 @@ replaceChild: function (node, ref_node) {
 this.insertBefore(node, ref_node);
 this.removeChild(ref_node);
 return node;
+},
+_hasCachedOwnerRoot: function (node) {
+return Boolean(node._ownerShadyRoot !== undefined);
 },
 getOwnerRoot: function () {
 return this._ownerShadyRootForNode(this.node);
@@ -1081,10 +1140,27 @@ return true;
 }
 },
 _updateInsertionPoints: function (host) {
-host.shadyRoot._insertionPoints = factory(host.shadyRoot).querySelectorAll(CONTENT);
+var i$ = host.shadyRoot._insertionPoints = factory(host.shadyRoot).querySelectorAll(CONTENT);
+for (var i = 0, c; i < i$.length; i++) {
+c = i$[i];
+saveLightChildrenIfNeeded(c);
+saveLightChildrenIfNeeded(factory(c).parentNode);
+}
 },
 _nodeIsInLogicalTree: function (node) {
-return Boolean(node._lightParent !== undefined || node._isShadyRoot || this._ownerShadyRootForNode(node) || node.shadyRoot);
+return Boolean(node._lightParent !== undefined || node._isShadyRoot || node.shadyRoot);
+},
+_ensureContentLogicalInfo: function (node) {
+if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+saveLightChildrenIfNeeded(this.node);
+var c$ = Array.prototype.slice.call(node.childNodes);
+for (var i = 0, n; i < c$.length && (n = c$[i]); i++) {
+this._ensureContentLogicalInfo(n);
+}
+} else if (node.localName === CONTENT) {
+saveLightChildrenIfNeeded(this.node);
+saveLightChildrenIfNeeded(node);
+}
 },
 _parentNeedsDistribution: function (parent) {
 return parent && parent.shadyRoot && hasInsertionPoint(parent.shadyRoot);
@@ -1138,14 +1214,12 @@ node = factory(node).parentNode;
 }
 },
 _addNodeToHost: function (node) {
-var checkNode = node.nodeType === Node.DOCUMENT_FRAGMENT_NODE ? node.firstChild : node;
-var root = this._ownerShadyRootForNode(checkNode);
+var root = this.getOwnerRoot();
 if (root) {
 root.host._elementAdd(node);
 }
 },
 _addLogicalInfo: function (node, container, index) {
-saveLightChildrenIfNeeded(container);
 var children = factory(container).childNodes;
 index = index === undefined ? children.length : index;
 if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
@@ -1169,8 +1243,7 @@ children.splice(index, 1);
 node._lightParent = null;
 },
 _removeOwnerShadyRoot: function (node) {
-var hasCachedRoot = factory(node).getOwnerRoot() !== undefined;
-if (hasCachedRoot) {
+if (this._hasCachedOwnerRoot(node)) {
 var c$ = factory(node).childNodes;
 for (var i = 0, l = c$.length, n; i < l && (n = c$[i]); i++) {
 this._removeOwnerShadyRoot(n);
@@ -1673,8 +1746,13 @@ this.shadyRoot = this.root;
 this.shadyRoot._distributionClean = false;
 this.shadyRoot._isShadyRoot = true;
 this.shadyRoot._dirtyRoots = [];
-this.shadyRoot._insertionPoints = !this._notes || this._notes._hasContent ? this.shadyRoot.querySelectorAll('content') : [];
+var i$ = this.shadyRoot._insertionPoints = !this._notes || this._notes._hasContent ? this.shadyRoot.querySelectorAll('content') : [];
 saveLightChildrenIfNeeded(this.shadyRoot);
+for (var i = 0, c; i < i$.length; i++) {
+c = i$[i];
+saveLightChildrenIfNeeded(c);
+saveLightChildrenIfNeeded(c.parentNode);
+}
 this.shadyRoot.host = this;
 },
 get domHost() {
@@ -1909,14 +1987,12 @@ if (newChildParent !== parentNode) {
 removeFromComposedParent(newChildParent, newChild);
 }
 remove(newChild);
-saveLightChildrenIfNeeded(parentNode);
 nativeInsertBefore.call(parentNode, newChild, refChild || null);
 newChild._composedParent = parentNode;
 }
 function remove(node) {
 var parentNode = getComposedParent(node);
 if (parentNode) {
-saveLightChildrenIfNeeded(parentNode);
 node._composedParent = null;
 nativeRemoveChild.call(parentNode, node);
 }
@@ -2401,6 +2477,19 @@ var MOUSE_EVENTS = [
 'mouseup',
 'click'
 ];
+var MOUSE_WHICH_TO_BUTTONS = [
+0,
+1,
+4,
+2
+];
+var MOUSE_HAS_BUTTONS = function () {
+try {
+return new MouseEvent('test', { buttons: 1 }).buttons === 1;
+} catch (e) {
+return false;
+}
+}();
 var IS_TOUCH_ONLY = navigator.userAgent.match(/iP(?:[oa]d|hone)|Android/);
 var mouseCanceller = function (mouseEvent) {
 mouseEvent[HANDLED_OBJ] = { skip: true };
@@ -2439,6 +2528,34 @@ POINTERSTATE.mouse.mouseIgnoreJob = null;
 };
 POINTERSTATE.mouse.mouseIgnoreJob = Polymer.Debounce(POINTERSTATE.mouse.mouseIgnoreJob, unset, MOUSE_TIMEOUT);
 }
+function hasLeftMouseButton(ev) {
+var type = ev.type;
+if (MOUSE_EVENTS.indexOf(type) === -1) {
+return false;
+}
+if (type === 'mousemove') {
+var buttons = ev.buttons === undefined ? 1 : ev.buttons;
+if (ev instanceof window.MouseEvent && !MOUSE_HAS_BUTTONS) {
+buttons = MOUSE_WHICH_TO_BUTTONS[ev.which] || 0;
+}
+return Boolean(buttons & 1);
+} else {
+var button = ev.button === undefined ? 0 : ev.button;
+return button === 0;
+}
+}
+function isSyntheticClick(ev) {
+if (ev.type === 'click') {
+if (ev.detail === 0) {
+return true;
+}
+var t = Gestures.findOriginalTarget(ev);
+var bcr = t.getBoundingClientRect();
+var x = ev.pageX, y = ev.pageY;
+return !(x >= bcr.left && x <= bcr.right && (y >= bcr.top && y <= bcr.bottom));
+}
+return false;
+}
 var POINTERSTATE = {
 mouse: {
 target: null,
@@ -2462,6 +2579,16 @@ break;
 }
 }
 return ta;
+}
+function trackDocument(stateObj, movefn, upfn) {
+stateObj.movefn = movefn;
+stateObj.upfn = upfn;
+document.addEventListener('mousemove', movefn);
+document.addEventListener('mouseup', upfn);
+}
+function untrackDocument(stateObj) {
+document.removeEventListener('mousemove', stateObj.movefn);
+document.removeEventListener('mouseup', stateObj.upfn);
 }
 var Gestures = {
 gestures: {},
@@ -2668,18 +2795,48 @@ deps: [
 'touchstart',
 'touchend'
 ],
+flow: {
+start: [
+'mousedown',
+'touchstart'
+],
+end: [
+'mouseup',
+'touchend'
+]
+},
 emits: [
 'down',
 'up'
 ],
+info: {
+movefn: function () {
+},
+upfn: function () {
+}
+},
+reset: function () {
+untrackDocument(this.info);
+},
 mousedown: function (e) {
+if (!hasLeftMouseButton(e)) {
+return;
+}
 var t = Gestures.findOriginalTarget(e);
 var self = this;
-var upfn = function upfn(e) {
+var movefn = function movefn(e) {
+if (!hasLeftMouseButton(e)) {
 self.fire('up', t, e);
-document.removeEventListener('mouseup', upfn);
+untrackDocument(self.info);
+}
 };
-document.addEventListener('mouseup', upfn);
+var upfn = function upfn(e) {
+if (hasLeftMouseButton(e)) {
+self.fire('up', t, e);
+}
+untrackDocument(self.info);
+};
+trackDocument(this.info, movefn, upfn);
 this.fire('down', t, e);
 },
 touchstart: function (e) {
@@ -2730,6 +2887,10 @@ this.moves.shift();
 }
 this.moves.push(move);
 },
+movefn: function () {
+},
+upfn: function () {
+},
 prevent: false
 },
 reset: function () {
@@ -2739,6 +2900,7 @@ this.info.moves = [];
 this.info.x = 0;
 this.info.y = 0;
 this.info.prevent = false;
+untrackDocument(this.info);
 },
 hasMovedEnough: function (x, y) {
 if (this.info.prevent) {
@@ -2752,6 +2914,9 @@ var dy = Math.abs(this.info.y - y);
 return dx >= TRACK_DISTANCE || dy >= TRACK_DISTANCE;
 },
 mousedown: function (e) {
+if (!hasLeftMouseButton(e)) {
+return;
+}
 var t = Gestures.findOriginalTarget(e);
 var self = this;
 var movefn = function movefn(e) {
@@ -2762,6 +2927,10 @@ self.info.addMove({
 x: x,
 y: y
 });
+if (!hasLeftMouseButton(e)) {
+self.info.state = 'end';
+untrackDocument(self.info);
+}
 self.fire(t, e);
 self.info.started = true;
 }
@@ -2771,11 +2940,9 @@ if (self.info.started) {
 Gestures.prevent('tap');
 movefn(e);
 }
-document.removeEventListener('mousemove', movefn);
-document.removeEventListener('mouseup', upfn);
+untrackDocument(self.info);
 };
-document.addEventListener('mousemove', movefn);
-document.addEventListener('mouseup', upfn);
+trackDocument(this.info, movefn, upfn);
 this.info.x = e.clientX;
 this.info.y = e.clientY;
 },
@@ -2870,10 +3037,14 @@ this.info.x = e.clientX;
 this.info.y = e.clientY;
 },
 mousedown: function (e) {
+if (hasLeftMouseButton(e)) {
 this.save(e);
+}
 },
 click: function (e) {
+if (hasLeftMouseButton(e)) {
 this.forward(e);
+}
 },
 touchstart: function (e) {
 this.save(e.changedTouches[0]);
@@ -2885,7 +3056,7 @@ forward: function (e) {
 var dx = Math.abs(e.clientX - this.info.x);
 var dy = Math.abs(e.clientY - this.info.y);
 var t = Gestures.findOriginalTarget(e);
-if (isNaN(dx) || isNaN(dy) || dx <= TAP_DISTANCE && dy <= TAP_DISTANCE) {
+if (isNaN(dx) || isNaN(dy) || dx <= TAP_DISTANCE && dy <= TAP_DISTANCE || isSyntheticClick(e)) {
 if (!this.info.prevent) {
 Gestures.fire(t, 'tap', {
 x: e.clientX,
@@ -3506,7 +3677,7 @@ trigger: trigger
 });
 },
 _parseMethod: function (expression) {
-var m = expression.match(/(\w*)\((.*)\)/);
+var m = expression.match(/([^\s]+)\((.*)\)/);
 if (m) {
 var sig = {
 method: m[1],
@@ -3600,6 +3771,10 @@ this._handlers = [];
 },
 _marshalAttributes: function () {
 this._takeAttributesToModel(this._config);
+},
+_attributeChangedImpl: function (name) {
+var model = this._clientsReadied ? this : this._config;
+this._setAttributeToProperty(model, name);
 },
 _configValue: function (name, value) {
 this._config[name] = value;
@@ -3880,36 +4055,56 @@ var array = this.get(path);
 var args = Array.prototype.slice.call(arguments, 1);
 var len = array.length;
 var ret = array.push.apply(array, args);
+if (args.length) {
 this._notifySplice(array, path, len, args.length, []);
+}
 return ret;
 },
 pop: function (path) {
 var array = this.get(path);
+var hadLength = Boolean(array.length);
 var args = Array.prototype.slice.call(arguments, 1);
-var rem = array.slice(-1);
 var ret = array.pop.apply(array, args);
-this._notifySplice(array, path, array.length, 0, rem);
+if (hadLength) {
+this._notifySplice(array, path, array.length, 0, [ret]);
+}
 return ret;
 },
 splice: function (path, start, deleteCount) {
 var array = this.get(path);
+if (start < 0) {
+start = array.length - Math.floor(-start);
+} else {
+start = Math.floor(start);
+}
+if (!start) {
+start = 0;
+}
 var args = Array.prototype.slice.call(arguments, 1);
 var ret = array.splice.apply(array, args);
-this._notifySplice(array, path, start, args.length - 2, ret);
+var addedCount = Math.max(args.length - 2, 0);
+if (addedCount || ret.length) {
+this._notifySplice(array, path, start, addedCount, ret);
+}
 return ret;
 },
 shift: function (path) {
 var array = this.get(path);
+var hadLength = Boolean(array.length);
 var args = Array.prototype.slice.call(arguments, 1);
 var ret = array.shift.apply(array, args);
+if (hadLength) {
 this._notifySplice(array, path, 0, 0, [ret]);
+}
 return ret;
 },
 unshift: function (path) {
 var array = this.get(path);
 var args = Array.prototype.slice.call(arguments, 1);
 var ret = array.unshift.apply(array, args);
+if (args.length) {
 this._notifySplice(array, path, 0, args.length, []);
+}
 return ret;
 }
 });
@@ -3932,7 +4127,7 @@ text = this._clean(text);
 return this._parseCss(this._lex(text), text);
 },
 _clean: function (cssText) {
-return cssText.replace(rx.comments, '').replace(rx.port, '');
+return cssText.replace(this._rx.comments, '').replace(this._rx.port, '');
 },
 _lex: function (text) {
 var root = {
@@ -3971,15 +4166,15 @@ var ss = node.previous ? node.previous.end : node.parent.start;
 t = text.substring(ss, node.start - 1);
 t = t.substring(t.lastIndexOf(';') + 1);
 var s = node.parsedSelector = node.selector = t.trim();
-node.atRule = s.indexOf(AT_START) === 0;
+node.atRule = s.indexOf(this.AT_START) === 0;
 if (node.atRule) {
-if (s.indexOf(MEDIA_START) === 0) {
+if (s.indexOf(this.MEDIA_START) === 0) {
 node.type = this.types.MEDIA_RULE;
-} else if (s.match(rx.keyframesRule)) {
+} else if (s.match(this._rx.keyframesRule)) {
 node.type = this.types.KEYFRAMES_RULE;
 }
 } else {
-if (s.indexOf(VAR_START) === 0) {
+if (s.indexOf(this.VAR_START) === 0) {
 node.type = this.types.MIXIN_RULE;
 } else {
 node.type = this.types.STYLE_RULE;
@@ -3999,12 +4194,12 @@ text = text || '';
 var cssText = '';
 if (node.cssText || node.rules) {
 var r$ = node.rules;
-if (r$ && (preserveProperties || !hasMixinRules(r$))) {
+if (r$ && (preserveProperties || !this._hasMixinRules(r$))) {
 for (var i = 0, l = r$.length, r; i < l && (r = r$[i]); i++) {
 cssText = this.stringify(r, preserveProperties, cssText);
 }
 } else {
-cssText = preserveProperties ? node.cssText : removeCustomProps(node.cssText);
+cssText = preserveProperties ? node.cssText : this.removeCustomProps(node.cssText);
 cssText = cssText.trim();
 if (cssText) {
 cssText = '  ' + cssText + '\n';
@@ -4022,6 +4217,19 @@ text += this.CLOSE_BRACE + '\n\n';
 }
 return text;
 },
+_hasMixinRules: function (rules) {
+return rules[0].selector.indexOf(this.VAR_START) >= 0;
+},
+removeCustomProps: function (cssText) {
+cssText = this.removeCustomPropAssignment(cssText);
+return this.removeCustomPropApply(cssText);
+},
+removeCustomPropAssignment: function (cssText) {
+return cssText.replace(this._rx.customProp, '').replace(this._rx.mixinProp, '');
+},
+removeCustomPropApply: function (cssText) {
+return cssText.replace(this._rx.mixinApply, '').replace(this._rx.varApply, '');
+},
 types: {
 STYLE_RULE: 1,
 KEYFRAMES_RULE: 7,
@@ -4029,31 +4237,26 @@ MEDIA_RULE: 4,
 MIXIN_RULE: 1000
 },
 OPEN_BRACE: '{',
-CLOSE_BRACE: '}'
-};
-function hasMixinRules(rules) {
-return rules[0].selector.indexOf(VAR_START) >= 0;
-}
-function removeCustomProps(cssText) {
-return cssText.replace(rx.customProp, '').replace(rx.mixinProp, '').replace(rx.mixinApply, '').replace(rx.varApply, '');
-}
-var VAR_START = '--';
-var MEDIA_START = '@media';
-var AT_START = '@';
-var rx = {
-comments: /\/\*[^*]*\*+([^\/*][^*]*\*+)*\//gim,
+CLOSE_BRACE: '}',
+_rx: {
+comments: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim,
 port: /@import[^;]*;/gim,
 customProp: /(?:^|[\s;])--[^;{]*?:[^{};]*?(?:[;\n]|$)/gim,
 mixinProp: /(?:^|[\s;])--[^;{]*?:[^{;]*?{[^}]*?}(?:[;\n]|$)?/gim,
 mixinApply: /@apply[\s]*\([^)]*?\)[\s]*(?:[;\n]|$)?/gim,
 varApply: /[^;:]*?:[^;]*var[^;]*(?:[;\n]|$)?/gim,
 keyframesRule: /^@[^\s]*keyframes/
+},
+VAR_START: '--',
+MEDIA_START: '@media',
+AT_START: '@'
 };
 return api;
 }();
 Polymer.StyleUtil = function () {
 return {
-MODULE_STYLES_SELECTOR: 'style, link[rel=import][type~=css]',
+MODULE_STYLES_SELECTOR: 'style, link[rel=import][type~=css], template',
+INCLUDE_ATTR: 'include',
 toCssText: function (rules, callback, preserveProperties) {
 if (typeof rules === 'string') {
 rules = this.parser.parse(rules);
@@ -4080,7 +4283,7 @@ clearStyleRules: function (style) {
 style.__cssRules = null;
 },
 forEachStyleRule: function (node, callback) {
-var s = node.selector;
+var s = node.parsedSelector;
 var skipRules = false;
 if (node.type === this.ruleTypes.STYLE_RULE) {
 callback(node);
@@ -4108,27 +4311,52 @@ afterNode = n$[n$.length - 1];
 target.insertBefore(style, afterNode && afterNode.nextSibling || target.firstChild);
 return style;
 },
+cssFromModules: function (moduleIds) {
+var modules = moduleIds.trim().split(' ');
+var cssText = '';
+for (var i = 0; i < modules.length; i++) {
+cssText += this.cssFromModule(modules[i]);
+}
+return cssText;
+},
 cssFromModule: function (moduleId) {
 var m = Polymer.DomModule.import(moduleId);
 if (m && !m._cssText) {
+m._cssText = this._cssFromElement(m);
+}
+return m && m._cssText || '';
+},
+_cssFromElement: function (element) {
 var cssText = '';
-var e$ = Array.prototype.slice.call(m.querySelectorAll(this.MODULE_STYLES_SELECTOR));
-for (var i = 0, e; i < e$.length; i++) {
+var content = element.content || element;
+var sourceDoc = element.ownerDocument;
+var e$ = Array.prototype.slice.call(content.querySelectorAll(this.MODULE_STYLES_SELECTOR));
+for (var i = 0, e, resolveDoc, addModule; i < e$.length; i++) {
 e = e$[i];
+resolveDoc = sourceDoc;
+addModule = null;
+if (e.localName === 'template') {
+cssText += this._cssFromElement(e);
+} else {
 if (e.localName === 'style') {
+addModule = e.getAttribute(this.INCLUDE_ATTR);
 e = e.__appliedElement || e;
 e.parentNode.removeChild(e);
 } else {
 e = e.import && e.import.body;
+resolveDoc = e.ownerDocument;
 }
 if (e) {
-cssText += Polymer.ResolveUrl.resolveCss(e.textContent, e.ownerDocument);
+cssText += this.resolveCss(e.textContent, resolveDoc);
 }
 }
-m._cssText = cssText;
+if (addModule) {
+cssText += this.cssFromModules(addModule);
 }
-return m && m._cssText || '';
+}
+return cssText;
 },
+resolveCss: Polymer.ResolveUrl.resolveCss,
 parser: Polymer.CssParse,
 ruleTypes: Polymer.CssParse.types
 };
@@ -4220,7 +4448,7 @@ var p$ = rule.selector.split(COMPLEX_SELECTOR_SEP);
 for (var i = 0, l = p$.length, p; i < l && (p = p$[i]); i++) {
 p$[i] = transformer.call(this, p, scope, hostScope);
 }
-rule.selector = p$.join(COMPLEX_SELECTOR_SEP);
+rule.selector = rule.transformedSelector = p$.join(COMPLEX_SELECTOR_SEP);
 },
 _transformComplexSelector: function (selector, scope, hostScope) {
 var stop = false;
@@ -4575,7 +4803,8 @@ return property && property.trim() || '';
 },
 valueForProperties: function (property, props) {
 var parts = property.split(';');
-for (var i = 0, p, m; i < parts.length && (p = parts[i]); i++) {
+for (var i = 0, p, m; i < parts.length; i++) {
+if (p = parts[i]) {
 m = p.match(this.rx.MIXIN_MATCH);
 if (m) {
 p = this.valueForProperty(props[m[1]], props);
@@ -4588,6 +4817,7 @@ pp[1] = this.valueForProperty(pp[1], props) || pp[1];
 p = pp.join(':');
 }
 parts[i] = p && p.lastIndexOf(';') === p.length - 1 ? p.slice(0, -1) : p || '';
+}
 }
 return parts.join(';');
 },
@@ -4608,7 +4838,7 @@ styleUtil.forRulesInStyles(styles, function (rule) {
 if (!rule.propertyInfo) {
 self.decorateRule(rule);
 }
-if (element && rule.propertyInfo.properties && matchesSelector.call(element, rule.selector)) {
+if (element && rule.propertyInfo.properties && matchesSelector.call(element, rule.transformedSelector || rule.parsedSelector)) {
 self.collectProperties(rule, props);
 addToBitMask(i, o);
 }
@@ -5006,9 +5236,9 @@ this._pushHost();
 this._stampTemplate();
 this._popHost();
 this._marshalAnnotationReferences();
-this._marshalHostAttributes();
 this._setupDebouncers();
 this._marshalInstanceEffects();
+this._marshalHostAttributes();
 this._marshalBehaviors();
 this._marshalAttributes();
 this._tryReady();
@@ -5021,12 +5251,14 @@ this._listenListeners(b.listeners);
 var nativeShadow = Polymer.Settings.useNativeShadow;
 var propertyUtils = Polymer.StyleProperties;
 var styleUtil = Polymer.StyleUtil;
+var cssParse = Polymer.CssParse;
 var styleDefaults = Polymer.StyleDefaults;
 var styleTransformer = Polymer.StyleTransformer;
 Polymer({
 is: 'custom-style',
 extends: 'style',
-created: function () {
+properties: { include: String },
+ready: function () {
 this._tryApply();
 },
 attached: function () {
@@ -5038,7 +5270,7 @@ if (this.parentNode && this.parentNode.localName !== 'dom-module') {
 this._appliesToDocument = true;
 var e = this.__appliedElement || this;
 styleDefaults.addStyle(e);
-if (e.textContent) {
+if (e.textContent || this.include) {
 this._apply();
 } else {
 var observer = new MutationObserver(function () {
@@ -5052,13 +5284,16 @@ observer.observe(e, { childList: true });
 },
 _apply: function () {
 var e = this.__appliedElement || this;
+if (this.include) {
+e.textContent += styleUtil.cssFromModules(this.include);
+}
 this._computeStyleProperties();
 var props = this._styleProperties;
 var self = this;
 e.textContent = styleUtil.toCssText(styleUtil.rulesForStyle(e), function (rule) {
 var css = rule.cssText = rule.parsedCssText;
 if (rule.propertyInfo && rule.propertyInfo.cssText) {
-css = css.replace(propertyUtils.rx.VAR_ASSIGN, '');
+css = cssParse.removeCustomPropAssignment(css);
 rule.cssText = propertyUtils.valueForProperties(css, props);
 }
 styleTransformer.documentRule(rule);
@@ -5106,10 +5341,24 @@ _showHideChildrenImpl: function (hide) {
 var c = this._children;
 for (var i = 0; i < c.length; i++) {
 var n = c[i];
-if (n.style) {
-n.style.display = hide ? 'none' : '';
-n.__hideTemplateChildren__ = hide;
+if (Boolean(hide) != Boolean(n.__hideTemplateChildren__)) {
+if (n.nodeType === Node.TEXT_NODE) {
+if (hide) {
+n.__polymerTextContent__ = n.textContent;
+n.textContent = '';
+} else {
+n.textContent = n.__polymerTextContent__;
 }
+} else if (n.style) {
+if (hide) {
+n.__polymerDisplay__ = n.style.display;
+n.style.display = 'none';
+} else {
+n.style.display = n.__polymerDisplay__;
+}
+}
+}
+n.__hideTemplateChildren__ = hide;
 }
 },
 _debounceTemplate: function (fn) {
@@ -5375,29 +5624,36 @@ items.push(store[key]);
 return items;
 },
 _applySplices: function (splices) {
-var keySplices = [];
-for (var i = 0; i < splices.length; i++) {
-var j, o, key, s = splices[i];
+var keyMap = {}, key, i;
+splices.forEach(function (s) {
+s.addedKeys = [];
+for (i = 0; i < s.removed.length; i++) {
+key = this.getKey(s.removed[i]);
+keyMap[key] = keyMap[key] ? null : -1;
+}
+for (i = 0; i < s.addedCount; i++) {
+var item = this.userArray[s.index + i];
+key = this.getKey(item);
+key = key === undefined ? this.add(item) : key;
+keyMap[key] = keyMap[key] ? null : 1;
+s.addedKeys.push(key);
+}
+}, this);
 var removed = [];
-for (j = 0; j < s.removed.length; j++) {
-o = s.removed[j];
-key = this.remove(o);
+var added = [];
+for (var key in keyMap) {
+if (keyMap[key] < 0) {
+this.removeKey(key);
 removed.push(key);
 }
-var added = [];
-for (j = 0; j < s.addedCount; j++) {
-o = this.userArray[s.index + j];
-key = this.add(o);
+if (keyMap[key] > 0) {
 added.push(key);
 }
-keySplices.push({
-index: s.index,
-removed: removed,
-removedItems: s.removed,
-added: added
-});
 }
-return keySplices;
+return [{
+removed: removed,
+added: added
+}];
 }
 };
 Polymer.Collection.get = function (userArray) {
@@ -5492,11 +5748,13 @@ this.collection = null;
 } else {
 this._error(this._logf('dom-repeat', 'expected array for `items`,' + ' found', this.items));
 }
-this._splices = [];
+this._keySplices = [];
+this._indexSplices = [];
 this._needFullRefresh = true;
 this._debounceTemplate(this._render);
 } else if (change.path == 'items.splices') {
-this._splices = this._splices.concat(change.value.keySplices);
+this._keySplices = this._keySplices.concat(change.value.keySplices);
+this._indexSplices = this._indexSplices.concat(change.value.indexSplices);
 this._debounceTemplate(this._render);
 } else {
 var subpath = change.path.slice(6);
@@ -5533,16 +5791,17 @@ this._applyFullRefresh();
 this._needFullRefresh = false;
 } else {
 if (this._sortFn) {
-this._applySplicesUserSort(this._splices);
+this._applySplicesUserSort(this._keySplices);
 } else {
 if (this._filterFn) {
 this._applyFullRefresh();
 } else {
-this._applySplicesArrayOrder(this._splices);
+this._applySplicesArrayOrder(this._indexSplices);
 }
 }
 }
-this._splices = [];
+this._keySplices = [];
+this._indexSplices = [];
 var keyToIdx = this._keyToInstIdx = {};
 for (var i = 0; i < this._instances.length; i++) {
 var inst = this._instances[i];
@@ -5680,10 +5939,10 @@ pool.push(inst);
 }
 }
 this._instances.splice(s.index, s.removed.length);
-for (var i = 0; i < s.added.length; i++) {
+for (var i = 0; i < s.addedKeys.length; i++) {
 var inst = {
 isPlaceholder: true,
-key: s.added[i]
+key: s.addedKeys[i]
 };
 this._instances.splice(s.index + i, 0, inst);
 }
@@ -5792,16 +6051,23 @@ is: 'array-selector',
 properties: {
 items: {
 type: Array,
-observer: '_itemsChanged'
+observer: 'clearSelection'
+},
+multi: {
+type: Boolean,
+value: false,
+observer: 'clearSelection'
 },
 selected: {
 type: Object,
 notify: true
 },
-toggle: Boolean,
-multi: Boolean
+toggle: {
+type: Boolean,
+value: false
+}
 },
-_itemsChanged: function () {
+clearSelection: function () {
 if (Array.isArray(this.selected)) {
 for (var i = 0; i < this.selected.length; i++) {
 this.unlinkPaths('selected.' + i);
@@ -5810,20 +6076,28 @@ this.unlinkPaths('selected.' + i);
 this.unlinkPaths('selected');
 }
 if (this.multi) {
+if (!this.selected || this.selected.length) {
 this.selected = [];
+this._selectedColl = Polymer.Collection.get(this.selected);
+}
 } else {
 this.selected = null;
+this._selectedColl = null;
+}
+},
+isSelected: function (item) {
+if (this.multi) {
+return this._selectedColl.getKey(item) !== undefined;
+} else {
+return this.selected == item;
 }
 },
 deselect: function (item) {
 if (this.multi) {
-var scol = Polymer.Collection.get(this.selected);
-var sidx = this.selected.indexOf(item);
-if (sidx >= 0) {
-var skey = scol.getKey(item);
-this.splice('selected', sidx, 1);
+if (this.isSelected(item)) {
+var skey = this._selectedColl.getKey(item);
+this.arrayDelete('selected', item);
 this.unlinkPaths('selected.' + skey);
-return true;
 }
 } else {
 this.selected = null;
@@ -5834,18 +6108,14 @@ select: function (item) {
 var icol = Polymer.Collection.get(this.items);
 var key = icol.getKey(item);
 if (this.multi) {
-var scol = Polymer.Collection.get(this.selected);
-var skey = scol.getKey(item);
-if (skey >= 0) {
+if (this.isSelected(item)) {
 if (this.toggle) {
 this.deselect(item);
 }
 } else {
 this.push('selected', item);
-this.async(function () {
-skey = scol.getKey(item);
+skey = this._selectedColl.getKey(item);
 this.linkPaths('selected.' + skey, 'items.' + key);
-});
 }
 } else {
 if (this.toggle && item == this.selected) {
@@ -5890,7 +6160,6 @@ this._flushTemplates();
 _render: function () {
 if (this.if) {
 if (!this.ctor) {
-this._wrapTextNodes(this._content || this.content);
 this.templatize(this);
 }
 this._ensureInstance();
@@ -5926,16 +6195,6 @@ parent.removeChild(n);
 this._instance = null;
 }
 },
-_wrapTextNodes: function (root) {
-for (var n = root.firstChild; n; n = n.nextSibling) {
-if (n.nodeType === Node.TEXT_NODE && n.textContent.trim()) {
-var s = document.createElement('span');
-root.insertBefore(s, n);
-s.appendChild(n);
-n = s;
-}
-}
-},
 _showHideChildren: function () {
 var hidden = this.__hideTemplateChildren__ || !this.if;
 if (this._instance) {
@@ -5953,37 +6212,11 @@ this._instance.notifyPath(path, value, true);
 }
 }
 });
-Polymer.ImportStatus = {
-_ready: false,
-_callbacks: [],
-whenLoaded: function (cb) {
-if (this._ready) {
-cb();
-} else {
-this._callbacks.push(cb);
-}
-},
-_importsLoaded: function () {
-this._ready = true;
-this._callbacks.forEach(function (cb) {
-cb();
-});
-this._callbacks = [];
-}
-};
-window.addEventListener('load', function () {
-Polymer.ImportStatus._importsLoaded();
-});
-if (window.HTMLImports) {
-HTMLImports.whenReady(function () {
-Polymer.ImportStatus._importsLoaded();
-});
-}
 Polymer({
 is: 'dom-bind',
 extends: 'template',
 created: function () {
-Polymer.ImportStatus.whenLoaded(this._markImportsReady.bind(this));
+Polymer.RenderStatus.whenReady(this._markImportsReady.bind(this));
 },
 _ensureReady: function () {
 if (!this._readied) {
@@ -7321,11 +7554,6 @@ this.fire('dom-change');
     ],
 
     ready: function() {
-      // TODO(sjmiles): ensure read-only property is valued so the compound
-      // observer will fire
-      if (this.focused === undefined) {
-        this._setFocused(false);
-      }
       this.addEventListener('focus', this._boundFocusBlurHandler, true);
       this.addEventListener('blur', this._boundFocusBlurHandler, true);
     },
@@ -7336,7 +7564,6 @@ this.fire('dom-change');
         var focused = event.type === 'focus';
         this._setFocused(focused);
       } else if (!this.shadowRoot) {
-        event.stopPropagation();
         this.fire(event.type, {sourceEvent: event}, {
           node: this,
           bubbles: event.bubbles,
@@ -7405,8 +7632,7 @@ this.fire('dom-change');
         type: Boolean,
         value: false,
         notify: true,
-        reflectToAttribute: true,
-        observer: '_activeChanged'
+        reflectToAttribute: true
       },
 
       /**
@@ -7427,6 +7653,16 @@ this.fire('dom-change');
       receivedFocusFromKeyboard: {
         type: Boolean,
         readOnly: true
+      },
+
+      /**
+       * The aria attribute to be set if the button is a toggle and in the
+       * active state.
+       */
+      ariaActiveAttribute: {
+        type: String,
+        value: 'aria-pressed',
+        observer: '_ariaActiveAttributeChanged'
       }
     },
 
@@ -7437,7 +7673,8 @@ this.fire('dom-change');
     },
 
     observers: [
-      '_detectKeyboardFocus(focused)'
+      '_detectKeyboardFocus(focused)',
+      '_activeChanged(active, ariaActiveAttribute)'
     ],
 
     keyBindings: {
@@ -7464,8 +7701,10 @@ this.fire('dom-change');
     // to emulate native checkbox, (de-)activations from a user interaction fire
     // 'change' events
     _userActivate: function(active) {
-      this.active = active;
-      this.fire('change');
+      if (this.active !== active) {
+        this.active = active;
+        this.fire('change');
+      }
     },
 
     _eventSourceIsPrimaryInput: function(event) {
@@ -7533,11 +7772,18 @@ this.fire('dom-change');
       this._changedButtonState();
     },
 
-    _activeChanged: function(active) {
+    _ariaActiveAttributeChanged: function(value, oldValue) {
+      if (oldValue && oldValue != value && this.hasAttribute(oldValue)) {
+        this.removeAttribute(oldValue);
+      }
+    },
+
+    _activeChanged: function(active, ariaActiveAttribute) {
       if (this.toggles) {
-        this.setAttribute('aria-pressed', active ? 'true' : 'false');
+        this.setAttribute(this.ariaActiveAttribute,
+                          active ? 'true' : 'false');
       } else {
-        this.removeAttribute('aria-pressed');
+        this.removeAttribute(this.ariaActiveAttribute);
       }
       this._changedButtonState();
     },
@@ -9055,7 +9301,7 @@ this.fire('dom-change');
   /**
    * Use `Polymer.IronValidatableBehavior` to implement an element that validates user input.
    *
-   * ### Accessiblity
+   * ### Accessibility
    *
    * Changing the `invalid` property, either manually or by calling `validate()` will update the
    * `aria-invalid` attribute.
@@ -9126,19 +9372,35 @@ this.fire('dom-change');
     },
 
     /**
-     * @param {Object} values Passed to the validator's `validate()` function.
-     * @return {boolean} True if `values` is valid.
+     * Returns true if the `value` is valid, and updates `invalid`. If you want
+     * your element to have custom validation logic, do not override this method;
+     * override `_getValidity(value)` instead.
+
+     * @param {Object} value The value to be validated. By default, it is passed
+     * to the validator's `validate()` function, if a validator is set.
+     * @return {boolean} True if `value` is valid.
      */
-    validate: function(values) {
-      var valid = true;
+    validate: function(value) {
+      this.invalid = !this._getValidity(value);
+      return !this.invalid;
+    },
+
+    /**
+     * Returns true if `value` is valid.  By default, it is passed
+     * to the validator's `validate()` function, if a validator is set. You
+     * should override this method if you want to implement custom validity
+     * logic for your element.
+     *
+     * @param {Object} value The value to be validated.
+     * @return {boolean} True if `value` is valid.
+     */
+
+    _getValidity: function(value) {
       if (this.hasValidator()) {
-        valid = this._validator.validate(values);
+        return this._validator.validate(value);
       }
-
-      this.invalid = !valid;
-      return valid;
+      return true;
     }
-
   };
 
 
@@ -9253,7 +9515,7 @@ is separate from validation, and `allowed-pattern` does not affect how the input
 
     _bindValueChanged: function() {
       if (this.value !== this.bindValue) {
-        this.value = !this.bindValue ? '' : this.bindValue;
+        this.value = !(this.bindValue || this.bindValue === 0) ? '' : this.bindValue;
       }
       // manually notify because we don't want to notify until after setting value
       this.fire('bind-value-changed', {value: this.bindValue});
@@ -9288,6 +9550,7 @@ is separate from validation, and `allowed-pattern` does not affect how the input
       // For these keys, ASCII code == browser keycode.
       var anyNonPrintable =
         (event.keyCode == 8)   ||  // backspace
+        (event.keyCode == 9)   ||  // tab
         (event.keyCode == 13)  ||  // enter
         (event.keyCode == 27);     // escape
 
@@ -9372,12 +9635,12 @@ is separate from validation, and `allowed-pattern` does not affect how the input
 
 
 
-
   /**
+  Polymer.IronFormElementBehavior enables a custom element to be included
+  in an `iron-form`.
 
   @demo demo/index.html
   @polymerBehavior
-
   */
   Polymer.IronFormElementBehavior = {
 
@@ -9407,6 +9670,19 @@ is separate from validation, and `allowed-pattern` does not affect how the input
       value: {
         notify: true,
         type: String
+      },
+
+      /**
+       * Set to true to mark the input as required. If used in a form, a
+       * custom element that uses this behavior should also use
+       * Polymer.IronValidatableBehavior and define a custom validation method.
+       * Otherwise, a `required` element will always be considered valid.
+       * It's also strongly recomended to provide a visual style for the element
+       * when it's value is invalid.
+       */
+      required: {
+        type: Boolean,
+        value: false
       },
 
       /**
@@ -9532,14 +9808,6 @@ is separate from validation, and `allowed-pattern` does not affect how the input
       },
 
       /**
-       * The maximum length of the input value. Bind this to the `<input is="iron-input">`'s
-       * `maxlength` property.
-       */
-      maxlength: {
-        type: Number
-      },
-
-      /**
        * The error message to display when the input is invalid. Bind this to the
        * `<paper-input-error>`'s content, if using.
        */
@@ -9619,6 +9887,39 @@ is separate from validation, and `allowed-pattern` does not affect how the input
        */
       minlength: {
         type: Number
+      },
+
+      /**
+       * The maximum length of the input value. Bind this to the `<input is="iron-input">`'s
+       * `maxlength` property.
+       */
+      maxlength: {
+        type: Number
+      },
+
+      /**
+       * The minimum (numeric or date-time) input value.
+       * Bind this to the `<input is="iron-input">`'s `min` property.
+       */
+      min: {
+        type: String
+      },
+
+      /**
+       * The maximum (numeric or date-time) input value.
+       * Can be a String (e.g. `"2000-1-1"`) or a Number (e.g. `2`).
+       * Bind this to the `<input is="iron-input">`'s `max` property.
+       */
+      max: {
+        type: String
+      },
+
+      /**
+       * Limits the numeric or date-time increments.
+       * Bind this to the `<input is="iron-input">`'s `step` property.
+       */
+      step: {
+        type: String
       },
 
       /**
@@ -10132,10 +10433,30 @@ is separate from validation, and `allowed-pattern` does not affect how the input
 };
 
 
-    SwitchydActivePageAnimationBehaviro = {
+    SwitchydActivePageAnimationBehavior = {
         playActiveAnimation : function(){
             this.$.page.playActiveAnimation(); 
         },
+    };
+
+    SwitchydCommunicateBehavior = {
+        talk : function(){
+            var pendings = [];
+            return function(callback){
+                pendings.push(callback);
+                
+                this.debounce('switchyd-batch',function(){
+                    chrome.runtime.getBackgroundPage(function(page){
+                        pendings.forEach(function(pending_callback){
+                            pending_callback(page.switchyd);
+                        });
+
+                        // clear all
+                        pendings.splice(0,pendings.length);
+                    });
+                });
+            };
+        }(),
     };
 
 
@@ -11731,7 +12052,7 @@ is separate from validation, and `allowed-pattern` does not affect how the input
       }
 
       // type="number" hack needed because this.value is empty until it's valid
-      if (value || (inputElement.type === 'number' && !inputElement.checkValidity())) {
+      if (value || value === 0 || (inputElement.type === 'number' && !inputElement.checkValidity())) {
         this._inputHasContent = true;
       } else {
         this._inputHasContent = false;
@@ -11767,12 +12088,25 @@ is separate from validation, and `allowed-pattern` does not affect how the input
     _computeInputContentClass: function(noLabelFloat, alwaysFloatLabel, focused, invalid, _inputHasContent) {
       var cls = 'input-content';
       if (!noLabelFloat) {
+        var label = this.querySelector('label');
+
         if (alwaysFloatLabel || _inputHasContent) {
           cls += ' label-is-floating';
           if (invalid) {
             cls += ' is-invalid';
           } else if (focused) {
             cls += " label-is-highlighted";
+          }
+          // The label might have a horizontal offset if a prefix element exists
+          // which needs to be undone when displayed as a floating label.
+          if (this.$.prefix && label && label.offsetParent &&
+              Polymer.dom(this.$.prefix).getDistributedNodes().length > 0) {
+           label.style.left = -label.offsetParent.offsetLeft + 'px';
+          }
+        } else {
+          // When the label is not floating, it should overlap the input element.
+          if (label) {
+            label.style.left = 0;
           }
         }
       } else {
@@ -11956,6 +12290,7 @@ is separate from validation, and `allowed-pattern` does not affect how the input
         return this.icon || !this.src;
       },
 
+      /** @suppress {visibility} */
       _updateIcon: function() {
         if (this._usesIconset()) {
           if (this._iconsetName) {
@@ -11972,6 +12307,7 @@ is separate from validation, and `allowed-pattern` does not affect how the input
             this._img = document.createElement('img');
             this._img.style.width = '100%';
             this._img.style.height = '100%';
+            this._img.draggable = false;
           }
           this._img.src = this.src;
           Polymer.dom(this.root).appendChild(this._img);
@@ -12554,78 +12890,42 @@ is separate from validation, and `allowed-pattern` does not affect how the input
         Polymer({
             is : 'switchyd-servers',
             
-            behaviors : [SwitchydActivePageAnimationBehaviro],
+            behaviors : [
+                SwitchydActivePageAnimationBehavior,
+                SwitchydCommunicateBehavior,
+            ],
             
             ready : function(){
                 var self = this;
-                chrome.runtime.getBackgroundPage(function(page){
-                    self._reloadServers(page.switchyd);
+                this.talk(function(switchyd){
+                    self._reloadServers(switchyd);
                 });
             },
 
             _servers : [],
             
             _reloadServers : function(switchyd){
-                // ensure not empty
-                if(switchyd.config.servers.length < 1){
-                    page.switchyd.config.servers.push({
-                        type : 'SOCKS5',
-                        ip : '127.0.0.1',
-                        port : 10086,
-                    });
-                }
-                
-                this._servers = switchyd.config.servers.map(function(item){
-                    return item.type + ' ' +  item.ip + ':' + item.port;
-                });
+                this._servers = switchyd.config.servers();
+                return;
             },
 
             _sync : function(event){
                 // parse config
-                var configs = this._servers.map(function(item){
-                    var tuple = item.trim().split(' ');
-                    
-                    if(tuple.length != 2){
-                        console.warn('server config should in the form "PROTOCOL IP:PORT",'+'but got:'+item);
-                        return undefined;
-                    }
-
-                    // parse type
-                    var type = tuple[0].toUpperCase();
-                    
-                    // parse ip
-                    var ip_and_port = tuple[1].split(':');
-                    
-                    // prepared
-                    var ip = ip_and_port[0];
-                    
-                    // check if port presented
-                    if(ip_and_port.length < 2 || ip_and_port[1].trim().length == 0){
-                        // no port
-                        return {
-                            type : type,
-                            ip : ip,
-                            port : 80,
-                        };
-                    }else{
-                        return {
-                            type : type,
-                            ip : ip,
-                            port : ip_and_port[1],
-                        }
-                    }
-                }).filter(function(item){ return item !== undefined});
-                
                 var self = this;
-                // sync config
-                chrome.runtime.getBackgroundPage(function(page){
-                    page.switchyd.config.servers = configs;
+                this.talk(function(switchyd){
+                    var servers = switchyd.tracer('servers');
                     
-                    // notify sync done
+                    // reset
+                    servers.clear();
+                    
+                    // update
+                    self._servers.forEach(function(server){
+                        servers.track(server);
+                    });
+                    
+                    // sync
+                    switchyd.config.save();
                     self.$.page.syncDone();
-            
-                    // show toast
-                    page.switchyd.sync.save();
                 });
             }
         });
@@ -12642,10 +12942,16 @@ is separate from validation, and `allowed-pattern` does not affect how the input
                 }
             },
 
-            behaviors : [SwitchydActivePageAnimationBehaviro],
+            behaviors : [
+                SwitchydActivePageAnimationBehavior,
+                SwitchydCommunicateBehavior,
+            ],
             
             ready : function(){
                 var self = this;
+                this.talk(function(switchyd){
+                    self._reloadURLs(switchyd);
+                });
                 chrome.runtime.getBackgroundPage(function(page){
                     self._reloadURLs(page.switchyd);
                 });
@@ -12654,33 +12960,54 @@ is separate from validation, and `allowed-pattern` does not affect how the input
             _urls : [],
             
             _reloadURLs : function(switchyd){
-                var urls = switchyd.expand(switchyd.config.tracers[this.tracer]);
+                var url_groups = switchyd.group(this.tracer).container;
                 
+                var urls = [];
+                var expand = function(consumed,context){
+                    var no_children = true;
+                    for(var key in context){
+                        no_children = false;
+                        consumed.unshift(key);
+                        expand(consumed,context[key]);
+                        consumed.shift();
+                    }
+                    
+                    // leaf node,push it
+                    if(no_children && consumed.length > 0){
+                        // add this url
+                        urls.push(consumed.join('.'));
+                    }
+                }
+
+                // do expand
+                expand([],url_groups)
+
                 // ensure urls not empty
                 if( urls.length <= 0 ){
                     urls = [ this.tracer + '.google.com' ];
                 }
-
+                
                 this._urls = urls;
             },
 
             _sync : function(){
                 var self = this;
-                chrome.runtime.getBackgroundPage(function(page){
-                    var switchyd = page.switchyd;
-
-                    var workspace = switchyd.tracer(self.tracer+'-workspace');
-                    workspace.urls = {};
+                this.talk(function(switchyd){
+                    // reset group
+                    var group = switchyd.group(self.tracer);
+                    group.container = {};
+                    
+                    // update tracer
+                    var tracer = switchyd.tracer(self.tracer);
                     self._urls.forEach(function(url){
-                        workspace.track(url);
+                        tracer.track(url);
                     });
-
-                    // compile and optimize
-                    switchyd.config.tracers[self.tracer] = switchyd.optimize(switchyd.compile(workspace));
-                    // activate
-                    switchyd.sync.save();
-                    switchyd.async.enqueue();
-
+                    
+                    // recompile group
+                    switchyd.compiler.compile(group,tracer.container);
+                    
+                    // apply new pac
+                    switchyd.pac.gen();
                     self.$.page.syncDone();
                 });
             },
@@ -12690,21 +13017,20 @@ is separate from validation, and `allowed-pattern` does not affect how the input
         Polymer({
             is : 'switchyd-rules',
 
-            behaviors : [SwitchydActivePageAnimationBehaviro],
+            behaviors : [
+                SwitchydActivePageAnimationBehavior,
+                SwitchydCommunicateBehavior,
+            ],
 
             ready : function(){
                 var self = this;
-                chrome.runtime.getBackgroundPage(function(page){
-                    self._reloadRules(page.switchyd);
+                this.talk(function(switchyd){
+                    self._reloadRules(switchyd);
                 });
             },
             
             _reloadRules : function(switchyd){
-                var rules = [];
-                for(var rule in switchyd.config.rules){
-                    rules.push(rule);
-                }
-
+                var rules = Object.keys(switchyd.tracer('inspect-error').container);
                 if( rules.length <= 0 ){
                     rules = ['net::ERR_CONNECTION_RESET'];
                 }
@@ -12715,21 +13041,20 @@ is separate from validation, and `allowed-pattern` does not affect how the input
             _rules : [],
             
             _sync : function(){
-                var rules = {
-                    'net::ERR_CONNECTION_RESET':0, 
-                };
-
-                this._rules.forEach(function(rule){
-                    rules[rule]=0;
-                });
-                
                 var self = this;
-                chrome.runtime.getBackgroundPage(function(page){
-                    var switchyd = page.switchyd;
-                    switchyd.config.rules = rules;
+                this.talk(function(switchyd){
+                    var rules = switchyd.tracer('inspect-error');
 
-                    switchyd.sync.save();
-
+                    // clear
+                    rules.clear();
+                    
+                    // update
+                    self._rules.forEach(function(rule){
+                        rules.track(rule);
+                    });
+                    
+                    // sync
+                    switchyd.config.save();
                     self.$.page.syncDone();
                 });
             },
@@ -12751,16 +13076,15 @@ is separate from validation, and `allowed-pattern` does not affect how the input
             ],
  
             playActiveAnimation : function(){
-                return;
                 var self = this;
                 var animation_key = 'play';
                 this.animationConfig[animation_key] = [
                     {
-                        name : 'fade-in-animation',
+                        name : 'slide-down-animation',
                         node : self.$.markdown,
                     }
                 ];
-                console.log('ok');
+                
                 this.playAnimation(animation_key);
             },
         });

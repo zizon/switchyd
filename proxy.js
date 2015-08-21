@@ -1,333 +1,108 @@
-/*
-Copyright (c) <2013>, <Zizon Qiu zzdtsv@gmail.com>
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-1. Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-3. All advertising materials mentioning features or use of this software
-must display the following acknowledgement:
-This product includes software developed by the <organization>.
-4. Neither the name of the <organization> nor the
-names of its contributors may be used to endorse or promote products
-derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY <COPYRIGHT HOLDER> ''AS IS'' AND ANY
-EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
 "use strict";
 
-var switchyd = {
-    config:{
-        servers:[
-            {
-                type:"SOCKS5",
-                ip:"127.0.0.1",
-                port:10086
-            }
-        ],
-        
-        tracers:{
-            proxy:{},
-            do_not_track:{}
-        },
-        
-        rules:{
-            "net::ERR_CONNECTION_RESET":0,
-            "net::ERR_CONNECTION_TIMED_OUT":0,
-            "net::ERR_SSL_PROTOCOL_ERROR":0,
-            "net::ERR_TIMED_OUT":0
-        }
-    },
-    
-    sync:{
-        load:function(){
-            console.log("load config");
-            var config = localStorage.getItem("switchyd.config");
-            if( config ){
-                var loaded = JSON.parse(config);
-                // patch needed
-                if( !("rules" in loaded) ){
-                    loaded.rules = switchyd.config.rules;
-                }
-                switchyd.config = loaded;
-            }            
-        },            
+// forward decleartion
+var switchyd = switchyd || {};
 
-        save:function(){
-            console.log("save config");
-            for(var tracer in switchyd.config.tracers){
-                switchyd.async.merge(
-                    switchyd.build(tracer),
-                    switchyd.config.tracers[tracer]
-                );
-            }
+// track things
+switchyd.tracer = (function(){
+    var tracers = {};
+    
+    return function(name){
+        var candidate = undefined;
+        if( name in tracers ){
+            candidate = tracers[name];
+        }else{
+            // not found
+            candidate = {
+                container : {},
 
-            localStorage.setItem("switchyd.config",JSON.stringify(switchyd.config));    
-        }
-    },
-    
-    tracer:(function(){
-        var tracking = {};
-        return function(name){
-            if( name in tracking ){
-                return tracking[name];
-            }
-            
-            // not present yet,create one
-            return tracking[name] = {
-                urls:{},
-                
-                track:function(url){
-                    url in this.urls ? 0 : this.urls[url]=0;
-                    return this;
-                },
-                
-                reset:function(){
-                    this.urls = {};
-                    return this;
-                }
-            };
-        };
-    })(),
-    
-    compile:function(tracer){
-        var compiled = {};
-        
-        var transform = function(final,part){
-            return part in final ? final[part] : final[part] = {};
-        };
-        
-        // loop each node
-        for(var url in tracer.urls){
-            url.split(".").reduceRight(transform,compiled);
-        }
-        
-        return compiled;
-    },
-    
-    optimize:(function(){
-        var no_children = function(node){
-            for(var child in node){
-                if( child !== "*" ){
-                    return false;
-                }
-            }
-            
-            return true;
-        };
-        
-        return function(compiled,depth){
-            // ensure default value
-            depth = typeof depth == "undefined" ? 1 : depth;
-            
-            // leaf
-            if( no_children(compiled) ){
-                return compiled;
-            }
-            
-            var mergable = true;
-            var number_of_children = 0;
-
-            // none leaf
-            for(var part in compiled){
-                number_of_children++;
-                // recrusive optimize
-                compiled[part] = this.optimize(compiled[part],depth+1);
-                mergable = mergable && no_children(compiled[part]);
-            }
-            
-            // see if mergable
-            if( "*" in compiled ||( mergable && number_of_children > 1 && depth > 2 )){
-                for(var child in compiled){
-                    delete compiled[child];
-                }
-                
-                // add fuzzy mark
-                compiled["*"]={};
-            }
-            
-            return compiled;
-        };
-    })(),
-    
-    build:function(){
-        for( var tracer in this.config.tracers ){
-            var target = this.compile(this.tracer(tracer));
-            this.tracer(tracer).reset();
-            this.async.merge(target,this.config.tracers[tracer]);
-            this.optimize(this.config.tracers[tracer]);
-        }
-        
-        // trim do_not_track from proxy
-        this.config.tracers.proxy = this.optimize(
-            this.compile(
-                this.expand(this.config.tracers.proxy).filter(function(url){
-                        return !switchyd.match(switchyd.config.tracers.do_not_track,url);
-                    }).reduce(function(tracer,url){
-                        return tracer.track(url);
-                    },this.tracer("filter").reset())
-            )
-        );
-    },
-    
-    expand:(function(){
-        var _expand = function(source){
-            var result = [];
-            for(var key in source){
-                var child = _expand(source[key]);
-                if( child.length === 0){
-                    result.push([key]);
-                    continue;
-                }
-                
-                child.forEach(function(item){
-                    result.push([].concat(key,item));
-                });
-            }
-            
-            return result;
-        }
-        
-        return function(source){
-            return _expand(source).map(function(item){
-                item.reverse();
-                return item.join(".");
-            });
-        };
-    })(),
-
-    match:function(compiled,url){
-        return url.split(".").reduceRight(function(context,part){
-            return context ? 
-                    context === true ?
-                        true : part in context ?
-                            context[part] : "*" in context ?
-                                true : false 
-                    : false;
-        },compiled) !== false;
-    },
-    
-    async:{
-        merge:function(from,to){
-            for( var key in from ){
-                this.merge(from[key],key in to ? to[key] : to[key]={});
-            }
-        },
-         
-        enqueue:function(){
-            // dequeue
-            this.dequeue();
-        },
-
-        dequeue:function(){
-            switchyd.build();
-            switchyd.link();
-            switchyd.sync.save();
-        }
-    },
-    
-    link:function(){
-        var shuffle = function(arrays){
-            switch(arrays.length){
-                case 0:case 1:
-                    return [arrays];
-                case 2:
-                    return [
-                        [arrays[0],arrays[1]],
-                        [arrays[1],arrays[0]]
-                    ];
-            }
-            
-            return shuffle(arrays.slice(1)).reduce(function(shuffled,candidate,index,paritial){
-                for( var i=0; i<candidate.length; i++ ){
-                    shuffled.push([].concat(candidate.slice(0,i),arrays[0],candidate.slice(i)));
-                }
-                shuffled.push([].concat(candidate,arrays[0]));
-                return shuffled;
-            },[]);
-        };
-        var proxy = this.config.tracers.proxy;
-        
-        // make server load balance
-        var load_balance = shuffle(this.config.servers).map(function(servers){
-            return [].concat(servers.map(function(server){
-               return [server.type," " , server.ip,":",server.port].join(""); 
-            }),"DIRECT").join(";");
-        });
-        
-        var match = this.match;
-        var template = function(_,host){
-            if( match(proxy,host) ){
-                return load_balance[Date.now()%load_balance.length];
-            }
-            
-            return "DIRECT;";
-        };
-        
-        var script ="var load_balance = " + JSON.stringify(load_balance) + ";\n"
-                    + "var proxy = " + JSON.stringify(proxy) + ";\n"
-                    + "var match = " + match.toString() + ";\n"
-                    + "var FindProxyForURL = " + template.toString() + ";";
-        chrome.proxy.settings.set(
-            {
-                "value":{
-                    "mode":"pac_script",
-                    "pacScript":{
-                        "mandatory":false,
-                        "data":script
+                track : function(thing){
+                    if( thing in this.container ){
+                        this.container[thing]++;
+                    }else{
+                        this.container[thing] = 1;
                     }
+
+                    return;
+                },
+
+                untrack : function(thing){
+                    delete this.container[thing];
+                },
+
+                clear : function(){
+                    this.container = {};
+                },
+            };
+
+            // set it
+            tracers[name] = candidate;
+        }
+
+        return candidate;
+    };
+})();
+
+// inspecting errors
+switchyd.inspector = (function(){
+        return {
+            _inspect_key : 'inspect-error',
+            
+            _trace_key : 'all-inspect-error',
+
+            inspect : function(error){
+                // do tracing
+                switchyd.tracer(this._trace_key).track(error);
+                
+                var tracking = switchyd.tracer(this._inspect_key);
+                if( error in tracking.container ){
+                    tracking.track(error);
+                    return true;
                 }
+
+                return false;
             },
+            
+            register : function(rule){
+                switchyd.tracer(this._inspect_key).track(rule); 
+            },
+            
+            unregisger : function(rule){
+                switchyd.tracer(this._inspect_key).untrack(rule);
+            },
+        };
+})();
 
-            function(){
-                console.log("setting apply,sciprt:\n"+script);
-            }
-        );
+// inject switchyd
+switchyd.inject = function(){
+        // reload
+        switchyd.config.reload();
         
-        return script;
-    },
-    
-    plug:function(){
-        this.sync.load();
-
+        // apply pac
+        switchyd.pac.gen();
+        
+        // hook
         chrome.proxy.onProxyError.addListener(function(details){
-            console.error("proxy error:" + details);
+            console.error("proxy error:" + details.details);
         });
         
         // network diagnose
         chrome.webRequest.onErrorOccurred.addListener(function(details){
-                console.error(details);
-                  
-                // inspect potential reset request
-                if( details.error in switchyd.config.rules ){
-                    // track hits
-                    ++switchyd.config.rules[details.error];
-                    
+                if( details.error == 'net::ERR_NETWORK_CHANGED' ){
+                    console.log('network changed,regen PAC script');
+                    switchyd.pac.gen();
+                    return;
+                }
+
+                if( switchyd.inspector.inspect(details.error) ){
                     var start = details.url.indexOf("://") + 3;
                     var url = details.url.substr(start,details.url.indexOf("/",start) - start);
                     
-                    // only trigger when it was not track yet.
-                    if( switchyd.match(switchyd.config.tracers.do_not_track,url) 
-                        || switchyd.match(switchyd.config.tracers.proxy,url) ){
-                        return;
-                    }
+                    // do proxy
+                    switchyd.proxy.forward(url);
+                };
 
-                    switchyd.tracer("proxy").track(url);
-                    switchyd.async.enqueue();
-                }
+                console.warn(details);
             },
             {
                 "urls":[
@@ -336,10 +111,325 @@ var switchyd = {
                 ]
             }
         );
-        
-        this.async.enqueue();
-    }
 };
 
-switchyd.plug();
+// forward proxy works
+switchyd.proxy = (function(){
+    return {
+        forward : function( url ){
+            // swichyd.group
+            if( switchyd.group('whitelist').match(url) ){
+                // url in white list,stop proxying
+                return;
+            }
+            
+            if( switchyd.group('proxy').match(url) ){
+                // already in proxy list,do nothing
+                return;
+            }
 
+            // not yet proxy, make it
+            // switchyd.pac
+            switchyd.pac.add(url);
+        },
+    };
+})();
+
+// url matcher groups
+switchyd.group = (function(){
+    var groups = {};
+    return function(group_name){
+        var tracer = switchyd.tracer(group_name);
+        
+        var group = groups[group_name];
+        if( !group ){
+            group = groups[group_name] = {
+                
+                container : {},
+                
+                match : function(url){
+                    var compoments = url.split('.');
+                    var container = this.container;
+                    for( var i=compoments.length-1; i>=0 ; i-- ){
+                        // fast path
+                        if( '*' in container ){
+                            // fuzzy match
+                            return true;
+                        }
+                        
+                        var compoment = compoments[i];
+                        // normal case
+                        if( compoment in container ){
+                            container = container[compoment];
+                            continue;
+                        }
+                        
+                        // not match
+                        return false;
+                    }
+
+                    return true;
+                }
+            };
+        }
+        
+        if( Object.keys(tracer.container).length > 0 ){
+            // somthing new,compile it
+            // switchyd.compiler
+            switchyd.compiler.compile( group,tracer.container);
+            
+            // clear tracer
+            tracer.clear();
+        }
+        
+        return group;
+    };
+})();
+
+// matcher compiler
+switchyd.compiler = (function(){
+    var reap = function(map_style){
+        var container = [];
+        for(var key in map_style){
+            container.push(map_style[key]);
+        }
+
+        return container;
+    };
+
+    return {
+        compile : function(group,list_style){
+            var map_style = (group && group.container) || {}; 
+            var candidates = Object.keys(list_style);
+            
+            // do real compile only when needed
+            if( candidates.length > 0 ){
+                // transfer from list to map
+                candidates.forEach(function(url){
+                    var compoments = url.split('.');
+                    var container = map_style;
+                    for( var i=compoments.length - 1; i >=0 ; i-- ){
+                        var key = compoments[i];
+                        // fast path
+                        if( '*' in container ){
+                            // a fuzzy token found.
+                            return;
+                        }
+
+                        // normal case
+                        if( key in container ){
+                            // this part registered
+                            container = container[key];
+                        }else{
+                            // not yet register
+                            container = container[key] = {};
+                        }
+                    }
+                });
+
+                // rape level 1 and level 2
+                var pending = [];
+                reap(map_style).forEach(function(candidate){
+                    Array.prototype.push.apply(pending,reap(candidate));
+                });
+                
+                // do merge
+                for(;;){
+                    if( pending.length <= 0 ){
+                        // nothing to do,quit
+                        break;
+                    }
+                    
+                    var new_pending = [];
+                    pending.forEach(function(candidate){
+                        if( '*' in candidate ){
+                            // a previous merged container,remove others
+                            for(var key in candidate){
+                                if(key != '*'){
+                                    delete candidate[key];
+                                }
+
+                                return;
+                            }
+                        }                    
+                        
+                        // if at least 2 children
+                        if( Object.keys(candidate).length >=2 ){
+                            for(var key in candidate){
+                                delete candidate[key];
+                            }
+
+                            // add fuzzy back
+                            candidate['*'] = {};
+                            return;
+                        }
+
+                        // drill down
+                        Array.prototype.push.apply(new_pending,reap(candidate));
+                    });
+
+                    // replace pending
+                    pending = new_pending;
+                }
+            }
+        },
+    };
+})();
+
+switchyd.pac = (function(){
+    return {
+        add : function(url){
+            // track it
+            var tracer = switchyd.tracer('proxy');
+            tracer.track(url);
+
+            // compile proxy group
+            switchyd.compiler.compile(
+                switchyd.group('proxy'),
+                tracer.container
+            );
+            
+            this.gen();
+        },
+
+        gen : function(){
+            // proxy group
+            var proxy_group = switchyd.group('proxy');
+            
+            // whitelist group
+            var whitelist_group = switchyd.group('whitelist');
+            
+            // servers
+            var servers = switchyd.config.servers().map(function(server){
+                return server + ';DIRECT;';
+            });
+
+            // function tempalte
+            var FindProxyForURL = function(_,host){
+                if( proxy_group.match(host) 
+                    && !whitelist_group.match(host)){
+                    return servers[Date.now()%servers.length];
+                }
+                return 'DIRECT;';
+            };
+            
+            // scripts
+            var script = 'var proxy_group = ' + JSON.stringify(proxy_group) + ';\n'
+                    + 'proxy_group.match = ' + proxy_group.match.toString() + ';\n'
+                    + 'var whitelist_group = ' + JSON.stringify(whitelist_group) + ';\n'
+                    + 'whitelist_group.match = ' + whitelist_group.match.toString() + ';\n'
+                    + 'var servers = ' + JSON.stringify(servers) + ';\n'
+                    + "var:FindProxyForURL = " + FindProxyForURL.toString() + ";";
+        
+            // apply proxy
+            chrome.proxy.settings.set(
+                {
+                    "value":{
+                        "mode":"pac_script",
+                        "pacScript":{
+                            "mandatory":false,
+                            "data":script
+                        }
+                    }
+                },
+
+                function(){
+                    console.log("setting apply,script:\n"+script);
+                }
+            );
+
+            // save config
+            switchyd.config.save();
+        },
+    }
+})();
+
+// config provider
+switchyd.config = (function(){
+    return {
+        reload : function(){
+            var raw = localStorage.getItem('switchyd.config');
+            if( raw ){
+                var config = undefined;
+                try{
+                    config = JSON.parse(raw);
+                }catch(e){
+                    console.error('fail to parse stored config:'+raw);
+                }
+
+                if( config && (typeof config === 'object') ){
+                    config = this.migrate(config);
+
+                    // setup groups
+                    switchyd.group('proxy').container = config['group-proxy'] || {};
+                    switchyd.group('whitelist').container = config['group-whitelist'] || {};
+                    
+                    // tracer
+                    switchyd.tracer('inspect-error').container = config['tracer-inspect-error'];
+                    switchyd.tracer('servers').container = config['tracer-servers'];
+                    return ;
+                }
+            }
+            
+            // default config
+            switchyd.tracer('inspect-error').container = {
+                "net::ERR_CONNECTION_RESET":0,
+                "net::ERR_CONNECTION_TIMED_OUT":0,
+                "net::ERR_SSL_PROTOCOL_ERROR":0,
+                "net::ERR_TIMED_OUT":0
+            };
+            
+            switchyd.tracer('servers').container = {
+                'SOCKS5 127.0.0.1:10086' : 0,
+            };
+            
+            // save
+            this.save();
+        },
+
+        servers : function(){
+            return Object.keys(switchyd.tracer('servers').container);
+        },
+
+        save : function(){
+            var config = {};
+            
+            // group
+            config['group-proxy'] = switchyd.group('proxy').container;
+            config['group-whitelist'] = switchyd.group('whitelist').container;
+                
+            // tracer
+            config['tracer-inspect-error'] = switchyd.tracer('inspect-error').container;
+            config['tracer-servers'] = switchyd.tracer('servers').container;
+            
+            // version
+            config['version'] = 2;
+
+            localStorage.setItem('switchyd.config',JSON.stringify(config));
+        },
+
+        migrate : function(config){
+            if( 'version' in config ){
+                console.log('config version:'+config['version']);
+                return config;
+            }
+        
+            // pre versioning config
+            var new_config = {};
+            new_config['group-proxy'] = config.tracers['proxy'];
+            new_config['group-whitelist'] = config.tracers['do_not_track'];
+            new_config['tracer-inspect-error'] = config.rules;
+            new_config['tracer-servers'] = config['servers'].map(function(server){
+                return server['type'] + ' ' + server['ip'] + ':' + server['port'];
+            });
+            
+            // replace
+            config = new_config;
+            return config; 
+        },
+
+    }
+})();
+
+// kick start
+switchyd.inject();

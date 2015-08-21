@@ -1,10 +1,9 @@
 {
     "name": "switchyd",
-    "version": "0.7.6.0",
+    "version": "0.7.6.1",
     "manifest_version": 2,
     
     "background":{
-        "persistent": true,
         "scripts": ["proxy.js"]
     },
 

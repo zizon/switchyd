@@ -1,7 +1,7 @@
 <link rel='import' href='../bower_components/polymer/polymer.html'>
 
 <link rel='import' href='../polymer/switchyd-list-page.html'>
-<link rel='import' href='../polymer/switchyd-active-page-animaiton-behavior.html'>
+<link rel='import' href='../polymer/switchyd-behaviors.html'>
 
 <dom-module id='switchyd-urls'>
     
@@ -34,10 +34,16 @@ Example:
                 }
             },
 
-            behaviors : [SwitchydActivePageAnimationBehaviro],
+            behaviors : [
+                SwitchydActivePageAnimationBehavior,
+                SwitchydCommunicateBehavior,
+            ],
             
             ready : function(){
                 var self = this;
+                this.talk(function(switchyd){
+                    self._reloadURLs(switchyd);
+                });
                 chrome.runtime.getBackgroundPage(function(page){
                     self._reloadURLs(page.switchyd);
                 });
@@ -46,33 +52,54 @@ Example:
             _urls : [],
             
             _reloadURLs : function(switchyd){
-                var urls = switchyd.expand(switchyd.config.tracers[this.tracer]);
+                var url_groups = switchyd.group(this.tracer).container;
                 
+                var urls = [];
+                var expand = function(consumed,context){
+                    var no_children = true;
+                    for(var key in context){
+                        no_children = false;
+                        consumed.unshift(key);
+                        expand(consumed,context[key]);
+                        consumed.shift();
+                    }
+                    
+                    // leaf node,push it
+                    if(no_children && consumed.length > 0){
+                        // add this url
+                        urls.push(consumed.join('.'));
+                    }
+                }
+
+                // do expand
+                expand([],url_groups)
+
                 // ensure urls not empty
                 if( urls.length <= 0 ){
                     urls = [ this.tracer + '.google.com' ];
                 }
-
+                
                 this._urls = urls;
             },
 
             _sync : function(){
                 var self = this;
-                chrome.runtime.getBackgroundPage(function(page){
-                    var switchyd = page.switchyd;
-
-                    var workspace = switchyd.tracer(self.tracer+'-workspace');
-                    workspace.urls = {};
+                this.talk(function(switchyd){
+                    // reset group
+                    var group = switchyd.group(self.tracer);
+                    group.container = {};
+                    
+                    // update tracer
+                    var tracer = switchyd.tracer(self.tracer);
                     self._urls.forEach(function(url){
-                        workspace.track(url);
+                        tracer.track(url);
                     });
-
-                    // compile and optimize
-                    switchyd.config.tracers[self.tracer] = switchyd.optimize(switchyd.compile(workspace));
-                    // activate
-                    switchyd.sync.save();
-                    switchyd.async.enqueue();
-
+                    
+                    // recompile group
+                    switchyd.compiler.compile(group,tracer.container);
+                    
+                    // apply new pac
+                    switchyd.pac.gen();
                     self.$.page.syncDone();
                 });
             },
