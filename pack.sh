@@ -3,7 +3,7 @@ grunt vulcanize
 rm -f switchyd.zip
 zip switchyd.zip \
     option.html \
-    option.js \
+    polymer_option.js \
     proxy.js \
     manifest.json \
     ./bower_components/webcomponentsjs/webcomponents-lite.js \
@@ -11,7 +11,6 @@ zip switchyd.zip \
     ./bower_components/marked/lib/marked.js \
     ./bower_components/paper-drawer-panel/paper-drawer-panel.css \
     ./bower_components/paper-item/paper-item-shared.css \
-    ./polymer_option.js \
 
 rm -rf temp
 mkdir temp
