@@ -100,6 +100,7 @@ switchyd.inject = function(){
                     
                     // do proxy
                     switchyd.proxy.forward(url);
+                    return;
                 };
 
                 console.warn(details);
