@@ -319,7 +319,7 @@ switchyd.pac = (function(){
                     + 'var whitelist_group = ' + JSON.stringify(whitelist_group) + ';\n'
                     + 'whitelist_group.match = ' + whitelist_group.match.toString() + ';\n'
                     + 'var servers = ' + JSON.stringify(servers) + ';\n'
-                    + "var:FindProxyForURL = " + FindProxyForURL.toString() + ";";
+                    + "var FindProxyForURL = " + FindProxyForURL.toString() + ";";
         
             // apply proxy
             chrome.proxy.settings.set(
