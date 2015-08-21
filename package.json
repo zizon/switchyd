@@ -1,7 +1,7 @@
 {
     "name":"switchyd-build-bot",
     "version":"0.0.2",
-    "license" : "BSD-4-Clause",
+    "license" : "MIT",
     "private":true,
 
     "author":{
