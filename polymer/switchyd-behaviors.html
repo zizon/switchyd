@@ -10,15 +10,19 @@
             var pendings = [];
             return function(callback){
                 pendings.push(callback);
-                
+                var self = this;    
                 this.debounce('switchyd-batch',function(){
                     chrome.runtime.getBackgroundPage(function(page){
-                        pendings.forEach(function(pending_callback){
-                            pending_callback(page.switchyd);
-                        });
-
-                        // clear all
-                        pendings.splice(0,pendings.length);
+                        var delay = 100;
+                        var interval = 100;
+                        var pending = undefined;
+                        for(var pending = pendings.pop(); pending != undefined; pending = pendings.pop()){
+                            var wrap = pending;
+                            self.async(function(){
+                                wrap(page.switchyd);
+                            },delay);
+                            delay += interval;
+                        }
                     });
                 });
             };

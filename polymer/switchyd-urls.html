@@ -44,9 +44,6 @@ Example:
                 this.talk(function(switchyd){
                     self._reloadURLs(switchyd);
                 });
-                chrome.runtime.getBackgroundPage(function(page){
-                    self._reloadURLs(page.switchyd);
-                });
             },
             
             _urls : [],
