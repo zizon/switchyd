@@ -302,14 +302,14 @@ switchyd.pac = (function(){
             
             // servers
             var servers = switchyd.config.servers().map(function(server){
-                return server + ';DIRECT;';
-            });
+                return server + ';';
+            })[0];
 
             // function tempalte
             var FindProxyForURL = function(_,host){
                 if( proxy_group.match(host) 
                     && !whitelist_group.match(host)){
-                    return servers[Date.now()%servers.length];
+                    return servers;
                 }
                 return 'DIRECT;';
             };

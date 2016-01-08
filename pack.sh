@@ -12,8 +12,8 @@ zip switchyd.zip \
     ./bower_components/webcomponentsjs/webcomponents-lite.js \
     ./bower_components/web-animations-js/web-animations-next-lite.min.js \
     ./bower_components/marked/lib/marked.js \
-    ./bower_components/paper-drawer-panel/paper-drawer-panel.css \
-    ./bower_components/paper-item/paper-item-shared.css \
+    #./bower_components/paper-drawer-panel/paper-drawer-panel.css \
+    #./bower_components/paper-item/paper-item-shared.css \
 
 rm -rf temp
 mkdir temp
