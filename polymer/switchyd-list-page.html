@@ -9,7 +9,9 @@
     
     <template>
         <div id='doc' >
-            <marked-element markdown='{{_doc}}'></marked-element>
+            <marked-element markdown='{{_doc}}'>
+                <div class="markdown-html"></div>
+            </marked-element>
         </div>
         
         <div id='list'>
@@ -21,6 +23,9 @@
         </div>
     </template>
     
+    <style>
+    </style>
+
     <script>
         'use strict';
         Polymer({
@@ -37,6 +42,8 @@
                     type : Array,
 
                     value : [],
+
+                    notify : true,
                 },
 
                 notification : {
@@ -51,12 +58,12 @@
             ],
             
             ready : function(){
-                this._doc = Polymer.DomApi. getLightChildren(this)[0].data;
+                this._doc = this.getEffectiveTextContent();
                 this.playActiveAnimation();
             },
             
             playActiveAnimation : function(){
-                this._playSomeAnimation('doc','slide-down-animation');
+                this._playSomeAnimation('doc','slide-from-top-animation');
                 this._playSomeAnimation('list','slide-from-right-animation');
                 this._playSomeAnimation('operation','fade-in-animation'); 
             },
@@ -70,16 +77,23 @@
             _playSomeAnimation : function(id,animation_name){
                 var self = this;
                 var animation_key = id+'-'+animation_name;
-                //if( !(animation_key in this.animationConfig) ){
+                if( !(animation_key in this.animationConfig) ){
                     var animations = [];
                     
-                    animations.push({
+                    var animation = {
                             name : animation_name,
                             node : self.$[id],
-                    });
-
+                    };
+                    
+                    animations.push(animation);
+                    
                     this.animationConfig[animation_key] = animations;
-                //}
+                } else {
+                    // redirect node to this context
+                    this.animationConfig[animation_key].forEach(function(animation){
+                        animation.node = self.$[id];
+                    });
+                }
 
                 // play animation
                 this.playAnimation(animation_key);

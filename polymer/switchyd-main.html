@@ -10,7 +10,6 @@
 <link rel='import' href='../polymer/switchyd-servers.html'>
 <link rel='import' href='../polymer/switchyd-urls.html'>
 <link rel='import' href='../polymer/switchyd-rules.html'>
-<link rel='import' href='../polymer/switchyd-about.html'>
 
 <dom-module id='switchyd-main'>
     
@@ -38,7 +37,6 @@
                     <switchyd-urls tab='Proxys'></switchyd-urls>
                     <switchyd-urls tab='WihteList' tracer='whitelist'></switchyd-urls>
                     <switchyd-rules tab='Rules'></switchyd-rules>
-                    <switchyd-about tab='About'></switchyd-about>
                 </iron-selector>
             </paper-material>
         </paper-drawer-panel>
@@ -120,7 +118,7 @@
 
             _selected_changed : function(new_value,old_value){
                 var node = this.$$('iron-selector > *[tab='+new_value+']');
-                node && node.ready && node.ready();
+                //node && node.ready && node.ready();
                 node && node.playActiveAnimation && node.playActiveAnimation();
             },
             

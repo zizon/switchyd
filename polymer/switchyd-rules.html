@@ -24,6 +24,7 @@ Example:
             behaviors : [
                 SwitchydActivePageAnimationBehavior,
                 SwitchydCommunicateBehavior,
+                SwitchydUtilityBehavior,
             ],
 
             ready : function(){
@@ -39,7 +40,7 @@ Example:
                     rules = ['net::ERR_CONNECTION_RESET'];
                 }
 
-                this._rules = rules;
+                this._rules = rules.map(this.bindableString);
             },
             
             _rules : [],
@@ -54,7 +55,7 @@ Example:
                     
                     // update
                     self._rules.forEach(function(rule){
-                        rules.track(rule);
+                        rules.track(rule.value);
                     });
                     
                     // sync

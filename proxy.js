@@ -302,7 +302,7 @@ switchyd.pac = (function(){
             
             // servers
             var servers = switchyd.config.servers().map(function(server){
-                return server + ';';
+                return server + ';DIRECT;';
             })[0];
 
             // function tempalte

@@ -10,16 +10,25 @@
             var pendings = [];
             return function(callback){
                 pendings.push(callback);
+                
                 this.debounce('switchyd-batch',function(){
                     chrome.runtime.getBackgroundPage(function(page){
-                        pendings.forEach(function(pending_callback){
-                            pending_callback(page.switchyd);
-                        });
-
-                        pendings.splice(0,pendings.length);
+                        pendings.splice(0,pendings.length)
+                            .forEach(function(pending_callback){
+                                pending_callback(page.switchyd);
+                            });
                     });
                 });
             };
         }(),
+    };
+
+    SwitchydUtilityBehavior = {
+        bindableString : function(input){
+            return {
+                value : input,
+                _identity : Date.now(),
+            } 
+        }
     };
 </script>

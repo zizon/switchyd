@@ -6,16 +6,17 @@
 <link rel='import' href='../bower_components/paper-icon-button/paper-icon-button.html'>
 <link rel='import' href='../bower_components/neon-animation/neon-animation.html'>
 <link ref='import' href='../bower_components/iron-flex-layout/iron-flex-layout.html'>
+<link ref='import' href='../polymer/switchyd-behaviors.html'>
 
 <dom-module id='switchyd-list'>
 
     <template>
         <div id='container'>
             <template is='dom-repeat' items={{items}}>
-                <div index='{{index}}'>
+                <div index='{{index}}' hidden='{{item.hidden}}'>
                         <paper-icon-button icon='add' on-click='_add_row'></paper-icon-button>
                         <paper-icon-button disabled='{{!_removable}}' icon='remove' on-click='_remove_row'></paper-icon-button>
-                        <paper-input value='{{item}}'></paper-input>
+                        <paper-input value='{{item.value}}'></paper-input>
                 </div>
             </template>
         </div>
@@ -50,7 +51,7 @@
             properties : { 
                 items : {
                     type : Array,
-                    
+
                     notify : true,
                 },
 
@@ -60,13 +61,14 @@
                     value : {},
                 },
             },
-
+            
             observers : [
                 '_itemsChanged(items.splices)',
             ],
-            
+
             behaviors : [
-                Polymer.NeonAnimationRunnerBehavior
+                Polymer.NeonAnimationRunnerBehavior,
+                SwitchydUtilityBehavior,
             ],
 
             ready : function(){
@@ -77,23 +79,17 @@
             _add_row : function(event){
                 var index = event.model.index + 1;
                 
-                // remove it
-                this.splice('items', index , 0,''+event.model.item);
+                var copyed = this.bindableString(event.model.item.value);
+                copyed.hidden = true;
+                this.splice('items', index , 0, copyed);
                 
-                // items changed,but still,dom is not ready until at this end of microtask.
-                // dom creation is queue in debounce/async callbacks.
-                // so queue animation after it.
-                var self = this;
-                this.async(function(){
-                    self._playItemAddAnimation(index);
-                });
+                this._playItemAddAnimation(index);
             },
 
             _remove_row : function(event){
                 var index = event.model.index;
                 var self = this;
                 
-
                 // a bit odd here.
                 // if remove items here, a dom removal will also be queue.
                 // then there is no changce that , in animation, could do anything with the
@@ -112,9 +108,8 @@
                 },500);
             },
         
-            _itemsChanged : function(event){
-                var items = this.get('items');
-                this.set('_removable',items.length > 1);
+            _itemsChanged : function(){
+                this._removable = this.items.length > 1;
             },
             
             _indexToElement : function(index){
@@ -124,18 +119,29 @@
             _playItemAddAnimation : function(index){
                 var animation_key = 'add-animation-'+index;
                 var self = this;
+
                 this.debounce(animation_key,function(){
-                    var animactions = [];
-                    self.get('items').forEach(function(item,trace_index){
-                        if(trace_index >= index){
-                            animactions.push({
-                                name : 'slide-down-animation',
-                                node : self._indexToElement(trace_index),
-                            });
-                        }
+                    // make it visiable
+                    var node = self._indexToElement(index);
+                    self.toggleAttribute('hidden',false,node);
+                       
+                    // slide down part
+                    var animations = [];
+                    
+                    // prepare fade in part
+                    animations.push({
+                        name : 'fade-in-animation',
+                        node : node,
                     });
                     
-                    self.animationConfig[animation_key] = animactions;
+                    for(var trace_index = index+1; trace_index < self.items.length; trace_index++){
+                        animations.push({
+                            name : 'slide-from-top-animation',
+                            node : self._indexToElement(trace_index),
+                        });
+                    };
+                     
+                    self.animationConfig[animation_key] = animations;
                     self.playAnimation(animation_key);
                 });
             },
@@ -144,23 +150,17 @@
                 var animation_key = 'remove-animation-'+index;
                 var self = this;
                 this.debounce(animation_key,function(){
-                    var animactions = [];
-                    for(var trace_index = 0; trace_index< self.$.container.children.length - 1; trace_index++){
-                        if(trace_index > index){
-                            animactions.push({
-                                name : 'slide-up-animation',
-                                node : self._indexToElement(trace_index),
-                            });
-                        }
-                        if( trace_index == index ){
-                            animactions.push({
-                               name : 'fade-out-animation',
+                    var animations = [];
+                    for(var trace_index = index; trace_index< self.$.container.children.length - 1; trace_index++){
+                        if( trace_index >= index ){
+                            animations.push({
+                               name : trace_index == index ? 'fade-out-animation' : 'slide-up-animation',
                                node : self._indexToElement(trace_index),
                             });
                         }
                     };
-
-                    self.animationConfig[animation_key] = animactions;
+                    
+                    self.animationConfig[animation_key] = animations;
                     self.playAnimation(animation_key);
                 });
             },           

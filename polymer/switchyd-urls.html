@@ -37,6 +37,7 @@ Example:
             behaviors : [
                 SwitchydActivePageAnimationBehavior,
                 SwitchydCommunicateBehavior,
+                SwitchydUtilityBehavior,
             ],
             
             ready : function(){
@@ -76,7 +77,7 @@ Example:
                     urls = [ this.tracer + '.google.com' ];
                 }
                 
-                this._urls = urls;
+                this._urls = urls.map(this.bindableString);
             },
 
             _sync : function(){
@@ -89,7 +90,7 @@ Example:
                     // update tracer
                     var tracer = switchyd.tracer(self.tracer);
                     self._urls.forEach(function(url){
-                        tracer.track(url);
+                        tracer.track(url.value);
                     });
                     
                     // recompile group

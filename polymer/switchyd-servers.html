@@ -31,6 +31,7 @@ see [PAC Script Wikipedia](https://en.wikipedia.org/wiki/Proxy_auto-config)
             behaviors : [
                 SwitchydActivePageAnimationBehavior,
                 SwitchydCommunicateBehavior,
+                SwitchydUtilityBehavior,
             ],
             
             ready : function(){
@@ -43,7 +44,7 @@ see [PAC Script Wikipedia](https://en.wikipedia.org/wiki/Proxy_auto-config)
             _servers : [],
             
             _reloadServers : function(switchyd){
-                this._servers = switchyd.config.servers();
+                this._servers = switchyd.config.servers().map(this.bindableString);
                 return;
             },
 
@@ -58,7 +59,7 @@ see [PAC Script Wikipedia](https://en.wikipedia.org/wiki/Proxy_auto-config)
                     
                     // update
                     self._servers.forEach(function(server){
-                        servers.track(server);
+                        servers.track(server.value);
                     });
                     
                     // sync
