@@ -1,17 +1,24 @@
 {
     "name": "switchyd",
     "dependencies": {
-        "@polymer/polymer": "^3.0.0"
+        "@polymer/iron-icons": "^3.0.1",
+        "@polymer/lit-element": "^0.6.2",
+        "@polymer/paper-icon-button": "^3.0.1",
+        "@polymer/paper-input": "^3.0.1",
+        "@polymer/paper-material": "^3.0.1",
+        "@polymer/polymer": "^3.0.0",
+        "polymer-cli": "^1.8.1"
     },
     "devDependencies": {
         "@webcomponents/webcomponentsjs": "^2.0.0",
-        "polymer-cli": "^1.8.1",
         "wct-browser-legacy": "^1.0.0",
         "webpack": "^4.25.1",
         "webpack-cli": "^3.1.2"
     },
     "scripts": {
+        "page": "./node_modules/polymer-cli/bin/polymer.js build ;cp -f build/default/index.html option.html",
         "serve": "./node_modules/polymer-cli/bin/polymer.js serve",
-        "bundle": "./node_modules/webpack-cli/bin/cli.js --mode development --entry ./src/chrome/inject.js --output ./bundle.js"
+        "bundle": "./node_modules/webpack-cli/bin/cli.js --mode development --entry ./src/chrome/inject.js --output ./bundle.js",
+        "build": "yarn page;yarn bundle;"
     }
 }

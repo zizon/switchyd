@@ -219,7 +219,11 @@ export class Persistor {
     }
 
     unpersist() {
-        return JSON.parse(localStorage.getItem('switchyd.config'))
+        const raw = localStorage.getItem('switchyd.config');
+        if(raw === undefined) {
+            return [];
+        }
+        return JSON.parse(raw)
             .servers.map((server)=>{
                 const switchyd_server = new SwitchydServer().bind(server.server);
                 ['listen','accepts','denys'].forEach((name)=>{
@@ -301,6 +305,30 @@ export class Injector {
     constructor() {
     }
     
+    apply() {
+        const servers = new Persistor().unpersist();
+        const script = new Compiler().compile(servers);
+
+        if( chrome !== undefined && chrome.proxy !== undefined ) {
+            // apply proxy
+            chrome.proxy.settings.set(
+                {
+                    "value":{
+                        "mode":"pac_script",
+                        "pacScript":{
+                            "mandatory":false,
+                            "data":script
+                        }
+                    }
+                },
+
+                function(){
+                    console.log("setting apply,script:\n"+script);
+                }
+            );
+        }
+    }
+
     inject() {
         new Migrate().migrate();
         
