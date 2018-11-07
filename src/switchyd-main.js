@@ -72,8 +72,7 @@ class SwitchyMainElement extends LitElement {
         new Persistor().persist(servers);
         if( chrome && chrome.runtime && chrome.runtime.getBackgroundPage ){
              chrome.runtime.getBackgroundPage((page)=>{
-                console.log(Injector);
-                new Injector().apply();
+                page.SwitchydInjector.apply();
              })
         }
     }

@@ -1,6 +1,6 @@
 {
     "name": "switchyd",
-    "version": "0.7.7.1",
+    "version": "0.7.7.2",
     "manifest_version": 2,
     
     "background":{
@@ -9,7 +9,7 @@
         ]
     },
 
-    "options_page": "option.html",
+    "options_page": "build/default/index.html",
 
     "permissions": [
         "proxy",

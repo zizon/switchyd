@@ -1,4 +1,8 @@
 import { Injector } from './switchyd-server.js';
 
-new Injector().inject();
+const SwitchydInjector = new Injector();
+SwitchydInjector.inject();
 
+if( window.SwitchydInjector === undefined ){
+    window.SwitchydInjector = SwitchydInjector;
+}
