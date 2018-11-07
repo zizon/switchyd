@@ -1,10 +1,12 @@
 {
     "name": "switchyd",
-    "version": "0.7.6.12",
+    "version": "0.7.7.1",
     "manifest_version": 2,
     
     "background":{
-        "scripts": ["proxy.js"]
+        "scripts": [
+            "bundle.js"
+        ]
     },
 
     "options_page": "option.html",
