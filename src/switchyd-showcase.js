@@ -59,7 +59,6 @@ class SwitchydShowcaseElement extends LitElement {
 
                             @remove-server=${(event)=>{
                                 this._servers.splice(index,1);
-                                console.log(event);
                                 this.requestUpdate('_servers').then(()=>{
                                     this.dispatchEvent(new CustomEvent(
                                         event.type,

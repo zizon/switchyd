@@ -25,10 +25,6 @@ class SwitchyMainElement extends LitElement {
         });
     }
 
-    _log(event) {
-        console.log(event);
-    }
-    
     _whenReady(selector) {
         return new Promise((resolve)=>{
             this.updateComplete.then(()=>{
@@ -121,7 +117,6 @@ class SwitchyMainElement extends LitElement {
                             @remove-server=${(event)=>{
                                 const server = event.detail.server;
                                 const servers = new Persistor().unpersist();
-                                console.log(server); 
                                 const found =servers.findIndex((value)=>value.server() === server.server());
                                 if(found >= 0){
                                     servers.splice(found,1);

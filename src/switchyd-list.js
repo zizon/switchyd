@@ -76,19 +76,34 @@ class SwitchydListElement extends LitElement {
                                 <div class='inputs'>
                                     <paper-input value=${item}
                                         @change=${(event)=>{
+                                            const multi = this.list.filter((value)=> value === item).length >1;
                                             const value = event.target.value;
                                             this.list.splice(index,1,value);
                                             this.requestUpdate('list').then(()=>{
+                                                if(!multi) {    
+                                                    this.dispatchEvent(new CustomEvent(
+                                                        'replace-item',
+                                                        {
+                                                            detail : {
+                                                                old : item,
+                                                                value : value,
+                                                            }
+                                                        }
+                                                    ));
+                                                    return;
+                                                }
+
                                                 this.dispatchEvent(new CustomEvent(
-                                                    'replace-item',
+                                                    'add-item',
                                                     {
                                                         detail : {
-                                                            old : item,
                                                             value : value,
                                                         }
                                                     }
                                                 ));
                                             });
+                                        
+                                          
                                         }}
                                     >
                                     </paper-input>
@@ -98,7 +113,16 @@ class SwitchydListElement extends LitElement {
                                             icon='add'
                                             @tap=${(event)=>{
                                                 this.list.splice(index,0,item);
-                                                this.requestUpdate('list');
+                                                this.requestUpdate('list').then(()=>{
+                                                    this.dispatchEvent(new CustomEvent(
+                                                        'add-item',
+                                                        {
+                                                            detail : {
+                                                                value : item,
+                                                            }
+                                                        }
+                                                    ));
+                                                });
                                             }}
                                         >
                                         </paper-icon-button>
