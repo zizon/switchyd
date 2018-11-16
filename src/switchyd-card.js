@@ -147,7 +147,6 @@ class SwitchydCardElement extends LitElement {
                                     @add-item=${(event)=>{
                                         const value = event.detail.value;
                                         this.server._shorhand(name).add(value);
-                                        console.log(this.server._shorhand(name));
                                         this.dispatchEvent(new CustomEvent('request-sync'));
                                     }}
 

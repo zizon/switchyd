@@ -382,8 +382,8 @@ export class Injector {
                 
                 const start = details.url.indexOf("://") + 3;
                 const url = details.url.substr(start,details.url.indexOf("/",start) - start);
+                const changesets = new Map();
                 for(let server of leak.ref) {
-                    console.log(server); 
                     if( !server._shorhand('listen').has(details.error) ){
                         continue;
                     }
@@ -395,13 +395,30 @@ export class Injector {
                     }
                     
                     console.log(`add ${url} to ${server.server()}`)
-                    server.accept(url);
                     
-                    new Persistor().persist(leak.ref);
-                    leak.ref = attach();
-                
+                    let changeset = changesets.get(server.server());
+                    if(changeset === undefined){
+                        changeset = new Set();
+                    }
                 }
-
+                 
+                if(changesets.size > 0){
+                    // have changes,load first
+                    const persistor = new Persistor();
+                    const servers = persistor.unpersist();
+                    
+                    // apply changes
+                    servers.filter((server)=>changesets.has(server.server()))
+                        .forEach((server)=>{
+                            changesets.get(server.server()).forEach((url)=>server.accept(url));
+                        });
+                    
+                    // sync
+                    persistor.persist(servers);
+                    
+                    // update reference
+                    leak.ref = servers;
+                }
                 console.warn(details);
             },
             {
