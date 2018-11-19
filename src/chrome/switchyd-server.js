@@ -399,7 +399,10 @@ export class Injector {
                     let changeset = changesets.get(server.server());
                     if(changeset === undefined){
                         changeset = new Set();
+                        changesets.set(server.server(),changeset);
                     }
+
+                    changeset.add(url);
                 }
                  
                 if(changesets.size > 0){
