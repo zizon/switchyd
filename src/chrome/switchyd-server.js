@@ -402,7 +402,7 @@ export class Injector {
                         changesets.set(server.server(),changeset);
                     }
 
-                    changeset.add(url);
+                    changeset.add(url+'$');
                 }
                  
                 if(changesets.size > 0){
