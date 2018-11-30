@@ -8,14 +8,31 @@ export class SwitchydServer {
             .forEach((name)=>{
                 this._names.set(name,new Set());
             });
+
+        this._regexp = new Map();
     }
     
+    regexp(name,value) {
+        let re = this._regexp.get(name);
+        if(re === undefined) {
+            const values = Array.from(this._shorhand(name).values());
+            if( values.length <= 0 ) {
+                return false;
+            }
+
+            re = new RegExp(values.join('|'));
+        }
+        
+        return re.test(value);
+    }
+
     _shorhand(name,value) {
         if(value === undefined) {
             return this._names.get(name);
         }
 
         this._names.get(name).add(value);
+        this._regexp.delete(name);
         return this;
     }
 
@@ -44,6 +61,7 @@ export class SwitchydServer {
         this._server = undefined;
         Array.from(this._names.values())
             .forEach((set)=>set.clear());
+        this._regexp.clear();
     }
 }
 
@@ -388,9 +406,11 @@ export class Injector {
                         continue;
                     }
                     
-                    const denys = Array.from(server._shorhand('denys').values());
-                    if(denys.length > 0 && new RegExp(denys.join('|')).test(url)) {
-                        console.log(`pass ${url}`)
+                    if(server.regexp('denys',url)) {
+                        console.log(`pass ${url}`);
+                        continue;
+                    } else if(server.regexp('accepts',url)) {
+                        console.log(`added ${url}`);
                         continue;
                     }
                     
@@ -420,7 +440,7 @@ export class Injector {
                     persistor.persist(servers);
                     
                     // update reference
-                    leak.ref = servers;
+                    leak.ref = attach();
                 }
                 console.warn(details);
             },

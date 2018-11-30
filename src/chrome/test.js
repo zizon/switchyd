@@ -50,6 +50,18 @@ function test5() {
     new Injector().inject();
 }
 
-test5();
+function test6() {
+    const servers = new Persistor().unpersist();
+    
+    servers.forEach((server)=>{
+        console.log(server);
+        console.log(`
+            ${server.regexp('denys','www.facebook.com')}
+            ${server.regexp('accepts','encrypted-tbn0.gstatic.com')}
+        `);
+    });
+}
+
+test6();
 
 
