@@ -1,7 +1,7 @@
 {
     "name": "switchyd",
-    "version": "0.7.7.7",
-    "manifest_version": 2,
+    "version": "0.8.0.0",
+    "manifest_version": 3,
     
     "background":{
         "scripts": [
