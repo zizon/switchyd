@@ -1,6 +1,6 @@
-import { CompileList, Generator, Group } from './pac'
+import { CompileList, Generator, Group } from './pac.js'
 
-interface RawConfig {
+export interface RawConfig {
     version :number
     servers :{
         accepts :string[],
@@ -10,30 +10,15 @@ interface RawConfig {
     }[],
 }
 
+export type RawConfigSyncer = (config:RawConfig) => Promise<void>
+
 export class Config {
     protected raw : RawConfig
+    protected sync: RawConfigSyncer
 
-    constructor (json :string|null) {
-      try {
-        this.raw = JSON.parse(json || '') as RawConfig
-      } catch (error) {
-      // not parsable
-        console.error(error)
-        this.raw = {
-          version: 3,
-          servers: [{
-            accepts: [],
-            denys: [],
-            listen: [
-              'net::ERR_CONNECTION_RESET',
-              'net::ERR_CONNECTION_TIMED_OUT',
-              'net::ERR_SSL_PROTOCOL_ERROR',
-              'net::ERR_TIMED_OUT'
-            ],
-            server: 'DIRECT'
-          }]
-        }
-      }
+    constructor (raw :RawConfig, sync:RawConfigSyncer) {
+      this.raw = raw
+      this.sync = sync
     }
 
     public createGeneartor () :Generator {
@@ -53,24 +38,31 @@ export class Config {
       return JSON.stringify(this.raw)
     }
 
-    public assignProxyFor (error:string, url:string) : void {
+    public assignProxyFor (error:string, url:string) : Promise<boolean> {
       for (const group of this.raw.servers) {
         if (group.listen.find((x) => x === error)) {
           if (CompileList(group.denys).test(url)) {
-            return
+            return Promise.resolve(false)
           } else if (CompileList(group.accepts).test(url)) {
             // already proxy
-            return
+            return Promise.resolve(false)
           }
           continue
         }
       }
 
       // no existing rule associate with such url, try add
+      let changed:boolean = false
       for (const group of this.raw.servers) {
         if (group.listen.find((x) => x === error)) {
           group.accepts.push(url)
+          changed = true
         }
       }
+
+      if (changed) {
+        return this.sync(this.raw).then((_:void) => true)
+      }
+      return Promise.resolve(false)
     }
 }

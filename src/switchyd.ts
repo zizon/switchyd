@@ -1,4 +1,4 @@
-import { Config } from './config'
+import { Config, RawConfig } from './config.js'
 
 interface Listener {
     addListener : (
@@ -13,27 +13,29 @@ interface Listener {
     ) => void
 }
 
-interface WebHook {
+export interface WebHook {
     // handlerBehaviorChanged : (callback? :Function) => void
     onErrorOccurred : Listener
 }
 
- interface ProxyHook {
+export interface ProxyHook {
     settings : {
         set : (
             details: {
                 value : {
                     mode:string,
-                    pacScript:string,
+                    pacScript: {
+                      data: string
+                    },
                 }
             }
         ) => Promise<void>
     }
 }
 
- interface Storage{
-    setItem:(key:string, value:string)=>void
-    getItem:(key:string)=>string|null
+export interface Storage{
+    set:(config:RawConfig)=>Promise<void>
+    get:() => Promise<RawConfig>
 }
 
 class SwitchydWorker {
@@ -45,33 +47,44 @@ class SwitchydWorker {
     this.storage = storage
   }
 
-  public applyPAC (config?: Config):Promise<void> {
-    const generator = config ? config.createGeneartor() : this.loadConfig().createGeneartor()
-    const script = generator.compile()
+  public applyPAC ():Promise<void> {
+    return this.loadConfig().then((config) => this.applyPACWithConfig(config))
+  }
+
+  public assignProxyFor (error:string, url:string):Promise<void> {
+    console.log(`try add ${url} for ${error}`)
+    return this.loadConfig()
+      .then((config) => config.assignProxyFor(error, url))
+      .then((changed:boolean):Promise<void> => {
+        if (changed) {
+          return this.loadConfig()
+            .then((config:Config) => this.applyPACWithConfig(config))
+        }
+        return Promise.resolve()
+      })
+  }
+
+  protected applyPACWithConfig (config:Config):Promise<void> {
+    const script = config.createGeneartor().compile()
     return this.proxyhook.settings.set(
       {
         value: {
           mode: 'pac_script',
-          pacScript: script
+          pacScript: {
+            data: script
+          }
         }
-      })
-      .then((_) => {
-        console.log(`apply ${script}`)
-      }).catch((reason:any) => {
-        console.warn(`fail to apply pac script:${reason}`)
-      })
+      }
+    ).then((_:void):void => {
+      console.log(`apply ${script}`)
+    }).catch((reason:any):void => {
+      console.warn(`fail to apply pac script:${reason}`)
+    })
   }
 
-  public assignProxyFor (error:string, url:string, maybeConfig?:Config):Promise<void> {
-    const config = maybeConfig || this.loadConfig()
-    config.assignProxyFor(error, url)
-    this.storage.setItem('switchyd.config', config.jsonify())
-    return this.applyPAC(config)
-  }
-
-  protected loadConfig ():Config {
-    const raw = this.storage.getItem('switchyd.config')
-    return new Config(raw)
+  protected loadConfig ():Promise<Config> {
+    return this.storage.get()
+      .then((raw:RawConfig) => new Config(raw, (config:RawConfig) => this.storage.set(config)))
   }
 }
 

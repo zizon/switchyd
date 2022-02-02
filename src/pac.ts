@@ -1,4 +1,4 @@
-import { URLTier } from './trie'
+import { URLTier } from './trie.js'
 
 export class Group {
     protected bypass : URLTier
@@ -39,7 +39,7 @@ export class Group {
 
     protected serverString () : string {
       if (this.servers.length > 0) {
-        return this.servers.join(';') + ';DIRECT;'
+        return this.servers.join(';').replace(/DIRECT/gi, '') + ';DIRECT;'
       }
       return 'DIRECT'
     }
