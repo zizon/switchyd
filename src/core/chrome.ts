@@ -1,10 +1,11 @@
-/* eslint-disable no-unused-vars */
 import { RawConfig } from './config.js'
-import { Switchyd, Storage, ProxyHook, WebHook } from './switchyd.js'
+import { WebHook, ProxyHook, Storage } from './switchyd.js'
+
+/* eslint-disable no-unused-vars */
 type saveConfig = {
     'switchyd.config':RawConfig
 }
-declare namespace chrome{
+export declare namespace chrome{
     const webRequest :WebHook
     const proxy : ProxyHook
     const storage : {
@@ -15,7 +16,7 @@ declare namespace chrome{
     }
 }
 
-const storage:Storage = {
+export const ChromeStorage:Storage = {
   get: ():Promise<RawConfig> => {
     return chrome.storage.local.get('switchyd.config')
       .then((save:saveConfig) => {
@@ -34,7 +35,7 @@ const storage:Storage = {
               'net::ERR_SSL_PROTOCOL_ERROR',
               'net::ERR_TIMED_OUT'
             ],
-            server: 'DIRECT;'
+            server: 'SOCKS 127.0.0.1:10086'
           }]
         }
 
@@ -50,5 +51,3 @@ const storage:Storage = {
     return chrome.storage.local.set({ 'switchyd.config': config })
   }
 }
-
-new Switchyd(chrome.webRequest, chrome.proxy, storage).plug()
