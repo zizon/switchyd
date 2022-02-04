@@ -1,6 +1,10 @@
 /* eslint-disable no-unused-vars */
-import { chrome, ChromeStorage } from './chrome.js'
-import { RawConfig } from './config.js'
+import { resolveStorage } from './chrome.js'
 import { Switchyd } from './switchyd.js'
 
-new Switchyd(chrome.webRequest, chrome.proxy, ChromeStorage).plug()
+declare const chrome: {
+    webRequest:any
+    proxy:any
+}
+
+new Switchyd(chrome.webRequest, chrome.proxy, resolveStorage()).plug()

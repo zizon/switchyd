@@ -1,13 +1,16 @@
 import { CompileList, Generator, Group } from './pac.js'
+import { URLTier } from './trie.js'
+
+export type ProxyGroup = {
+  accepts :string[],
+  denys :string[],
+  listen:string[],
+  server: string,
+}
 
 export interface RawConfig {
     version :number
-    servers :{
-        accepts :string[],
-        denys :string[],
-        listen:string[],
-        server: string,
-    }[],
+    servers :ProxyGroup[]
 }
 
 export type RawConfigSyncer = (config:RawConfig) => Promise<void>
@@ -61,8 +64,24 @@ export class Config {
       }
 
       if (changed) {
-        return this.sync(this.raw).then((_:void) => true)
+        console.log(`change for assignProxyFor(${error},${url})`)
+        return this.sync(this.compact()).then((_:void) => true)
       }
+
+      console.log(`no change for assignProxyFor(${error},${url})`)
       return Promise.resolve(false)
+    }
+
+    protected compact ():RawConfig {
+      this.raw.servers.forEach((server) => {
+        [server.accepts, server.denys].forEach((list:string[]):void => {
+          const tire = new URLTier()
+          list.forEach(tire.add.bind(tire))
+          tire.compact()
+          list.splice(0, list.length, ...tire.unroll())
+        })
+      })
+
+      return this.raw
     }
 }

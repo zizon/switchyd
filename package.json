@@ -1,15 +1,38 @@
 {
-    "name": "switchyd-next",
+    "name": "switchyd",
     "devDependencies": {
         "@typescript-eslint/eslint-plugin": "^5.10.2",
         "@typescript-eslint/parser": "^5.10.2",
+        "@web/dev-server": "^0.1.29",
+        "@web/dev-server-esbuild": "^0.2.16",
         "eslint": "^7.32.0",
         "eslint-config-google": "^0.14.0",
         "eslint-config-standard": "^16.0.3",
         "eslint-plugin-import": "^2.25.4",
         "eslint-plugin-node": "^11.1.0",
         "eslint-plugin-promise": "^5.2.0",
-        "typescript": "^4.5.5"
+        "install": "^0.13.0",
+        "typescript": "^4.5.5",
+        "webpack": "^5.68.0",
+        "webpack-cli": "^4.9.2"
     },
-    "type": "module"
+    "type": "module",
+    "dependencies": {
+        "@lit-labs/task": "^1.1.1",
+        "@spectrum-web-components/button": "^0.16.3",
+        "@spectrum-web-components/field-label": "^0.7.3",
+        "@spectrum-web-components/icons-workflow": "^0.8.2",
+        "@spectrum-web-components/sidenav": "^0.12.4",
+        "@spectrum-web-components/split-view": "^0.4.2",
+        "@spectrum-web-components/styles": "^0.11.3",
+        "@spectrum-web-components/tabs": "^0.8.4",
+        "@spectrum-web-components/textfield": "^0.11.0",
+        "@spectrum-web-components/theme": "^0.9.3",
+        "lit": "^2.1.2"
+    },
+    "scripts": {
+        "prebuild": "tsc",
+        "build": "webpack --config webpack.config.cjs",
+        "postbuild": "zip switchyd.zip index.html resources/*.png dist/option-ui.js dist/service-worker.js manifest.json"
+    }
 }

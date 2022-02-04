@@ -4,24 +4,31 @@
     "manifest_version": 3,
     
     "background":{
-        "service_worker" : "dist/main.js",
+        "service_worker" : "dist/service-worker.js",
         "type": "module"
     },
+    
     "permissions": [
         "storage",
         "proxy",
         "webRequest"
     ],
+
     "host_permissions": [
         "http://*/*",
         "https://*/*",
         "ws://*/*",
         "wss://*/*"
     ],
+
+    "options_ui": {
+        "page": "index.html",
+        "open_in_tab": true 
+    },
     
     "icons":{
-        "16": "switchyd16.png",
-        "48": "switchyd48.png",
-        "128": "switchyd128.png"
+        "16": "resources/switchyd16.png",
+        "48": "resources/switchyd48.png",
+        "128": "resources/switchyd128.png"
     }
 }

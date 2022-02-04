@@ -38,7 +38,7 @@ export interface Storage{
     get:() => Promise<RawConfig>
 }
 
-class SwitchydWorker {
+export class SwitchydWorker {
   protected proxyhook : ProxyHook
   protected storage : Storage
 
@@ -57,9 +57,11 @@ class SwitchydWorker {
       .then((config) => config.assignProxyFor(error, url))
       .then((changed:boolean):Promise<void> => {
         if (changed) {
+          console.log(`try appply for${error},${url}`)
           return this.loadConfig()
             .then((config:Config) => this.applyPACWithConfig(config))
         }
+        console.log(`no appply for${error},${url}`)
         return Promise.resolve()
       })
   }
@@ -104,35 +106,38 @@ export class Switchyd {
     }
 
     public plug ():Promise<void> {
-      return new Promise<void>((resolve):void => {
-        this.webhook.onErrorOccurred.addListener(
-          (details):void => {
-            // it is run in a service worker
-            const worker = this.newWorker()
-            if (details.error === 'net::ERR_NETWORK_CHANGED') {
-              console.log('network changed,regen PAC script')
-              resolve(worker.applyPAC())
-              return
-            }
+      return this.newWorker()
+        .applyPAC()
+        .then(():Promise<void> => new Promise<void>((resolve):void => {
+          this.webhook.onErrorOccurred.addListener(
+            (details):void => {
+              // it is run in a service worker
+              const worker = this.newWorker()
+              if (details.error === 'net::ERR_NETWORK_CHANGED') {
+                console.log('network changed,regen PAC script')
+                resolve(worker.applyPAC())
+                return
+              }
 
-            // find host start
-            const start = details.url.indexOf('://') + 3
-            let end = details.url.indexOf('/', start)
-            if (end === -1) {
-              end = details.url.length
-            }
-            const url = details.url.substring(start, end)
-            resolve(worker.assignProxyFor(details.error, url))
-          },
-          {
-            urls: [
-              'http://*/*',
-              'https://*/*',
-              'ws://*/*',
-              'wss://*/*'
-            ]
-          },
-          ['extraHeaders'])
-      })
+              // find host start
+              const start = details.url.indexOf('://') + 3
+              let end = details.url.indexOf('/', start)
+              if (end === -1) {
+                end = details.url.length
+              }
+              const url = details.url.substring(start, end)
+              resolve(worker.assignProxyFor(details.error, url))
+            },
+            {
+              urls: [
+                'http://*/*',
+                'https://*/*',
+                'ws://*/*',
+                'wss://*/*'
+              ]
+            },
+            ['extraHeaders'])
+        })
+        )
     }
 }

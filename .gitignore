@@ -1,2 +1,5 @@
-**/*.swp
-/node_modules
+.vscode
+dist
+node_modules
+
+pnpm-lock.yaml

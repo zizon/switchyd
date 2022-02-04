@@ -30,8 +30,8 @@ export class Group {
       const bypass = CompileList(this.bypass.unroll())
       return `
         {
-            "proxy" : new RegExp("${proxy}"),
-            "bypass" : new RegExp("${bypass}"),
+            "proxy" : new RegExp(${proxy}),
+            "bypass" : new RegExp(${bypass}),
             "servers" : "${this.serverString()}"
         }
         `
@@ -77,7 +77,8 @@ export class Generator {
 }
 
 export const CompileList = (list:string[]):RegExp => {
-  let expr = list.map((x) => x.replace(/(\*|\$| )/g, ''))
+  let expr = list.filter((x) => x.trim().length > 0)
+    .map((x) => x.replace(/(\*|\$| )/g, ''))
     .map((x) => `(${x}$)`)
     .join('|')
   if (expr.length === 0) {

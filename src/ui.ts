@@ -1,12 +1,12 @@
 /* eslint-disable no-unused-vars */
 // switchd cores
-import { ChromeStorage } from '../../core/chrome.js'
-import { Storage } from '../../core/switchyd.js'
-import { RawConfig } from '../../core/config.js'
+import { resolveStorage } from './core/chrome.js'
+import { Storage, SwitchydWorker } from './core/switchyd.js'
+import { RawConfig } from './core/config.js'
 
 // lit
 import { LitElement, css, html, TemplateResult } from 'lit'
-import { customElement, property, state } from 'lit/decorators.js'
+import { customElement, state } from 'lit/decorators.js'
 import { Task } from '@lit-labs/task'
 import { repeat } from 'lit/directives/repeat.js'
 import { when } from 'lit/directives/when.js'
@@ -38,6 +38,11 @@ enum ListType {
   Proxy = 'Proxy',
   Bypass = 'Bypass',
   Activate = 'Activate On'
+}
+
+declare const chrome: {
+  webRequest:any
+  proxy:any
 }
 
 @customElement('switchyd-setting')
@@ -78,25 +83,19 @@ export class SwitchydSetting extends LitElement {
     }
   `;
 
-  @property()
-  mock: boolean = true
-
-  @state({
-    hasChanged: (value:boolean, old:boolean):boolean => value !== old && value
-  })
-  dirty:boolean = true
+  dirty:number = 0
 
   @state()
   selected:number = 0
 
-  config:Storage = this.createConfigStorage()
+  config:Storage = resolveStorage()
 
   loadConfig = new Task(
     this,
     ([_]):Promise<RawConfig> => {
-      return this.config.get()
+      return resolveStorage().get()
     },
-    () => [this.dirty]
+    () => []
   );
 
   render () {
@@ -122,7 +121,7 @@ export class SwitchydSetting extends LitElement {
                                 () => html`
                                   <div  @click='${(_:Event):void => {
                                     [config.servers[index], config.servers[index - 1]] = [config.servers[index - 1], config.servers[index]]
-                                    this.requestUpdate()
+                                    this.syncConfig(config)
                                   }}'>
                                     <sp-icon-arrow-up></sp-icon-arrow-up>
                                   </div>
@@ -137,24 +136,40 @@ export class SwitchydSetting extends LitElement {
                               </div>
 
                               <div @click='${(_:Event):void => {
-                                  config.servers.splice(index, 0, config.servers[index])
-                                  this.requestUpdate()
+                                  config.servers.splice(index, 0, {
+                                    accepts: [],
+                                    denys: [],
+                                    listen: [],
+                                    server: config.servers[index].server
+                                  })
+                                  this.syncConfig(config)
                               }}'>
                                 <sp-icon-add></sp-icon-add>
                               </div>
 
-                              <div @click='${(_:Event):void => {
-                                  config.servers.splice(index, 1)
-                                  this.requestUpdate()
-                              }}'>
-                                <sp-icon-remove></sp-icon-remove>
-                              </div>
+                              ${when(
+                                config.servers.length > 1,
+                                () => html`
+                                  <div @click='${(_:Event):void => {
+                                    config.servers.splice(index, 1)
+                                    if (index > 0 && this.selected >= index) {
+                                      this.selected--
+                                    }
+
+                                    this.syncConfig(config)
+                                  }}'>
+                                    <sp-icon-remove></sp-icon-remove>
+                                  </div>
+                                `
+                              )}
+                      
                             </div>
 
                             <sp-textfield id='nav-${index}' value='${server.server}' disabled
                               @change='${(_:Event):void => {
                                 const input = this.renderRoot.querySelector('#nav-' + index) as Textfield
                                 config.servers[index].server = input.value
+                                this.syncConfig(config)
                               }}' 
                               @focusout='${(_:Event):void => {
                                 const input = this.renderRoot.querySelector('#nav-' + index) as Textfield
@@ -164,8 +179,6 @@ export class SwitchydSetting extends LitElement {
                             </sp-textfield>                     
                           </div>
                         </sp-sidenav-item>
-                      
-                    
                       `
                   )}
                 `
@@ -225,19 +238,19 @@ export class SwitchydSetting extends LitElement {
                   const changed = this.renderRoot.querySelector('#list-' + selected + '-' + type + '-' + index) as Textfield
                   this.typeToList(config, type, selected)[index] = changed.value
 
-                  this.config.set(config)
+                  this.syncConfig(config)
                 }}'>
             </sp-textfield>
 
             <sp-button size='s' class='remove-button' variant='negative'
               @click='${(_:Event):void => {
                 this.typeToList(config, type, selected).splice(index, 1)
-                this.requestUpdate()
+                this.syncConfig(config)
               }}'>Remove</sp-button>
             <sp-button size='s' class='add-button' variant='cta'
               @click=${(_:Event):void => {
                 this.typeToList(config, type, selected).splice(index, 0, 'example.com')
-                this.requestUpdate()
+                this.syncConfig(config)
               }}
               >Add</sp-button>
           </div>
@@ -253,7 +266,7 @@ export class SwitchydSetting extends LitElement {
                 const changed = this.renderRoot.querySelector('#list-' + selected + '-' + type) as Textfield
                 if (changed.value.length > 0) {
                   this.typeToList(config, type, selected).push(changed.value)
-                  this.requestUpdate()
+                  this.syncConfig(config)
                 }
               }}
           >Add</sp-button>
@@ -282,46 +295,12 @@ export class SwitchydSetting extends LitElement {
     }
   }
 
-  protected createConfigStorage ():Storage {
-    if (!this.mock) {
-      return ChromeStorage
-    }
+  protected syncConfig (config:RawConfig):void {
+    this.config.set(config)
+    this.requestUpdate()
 
-    let mockConfig:RawConfig = {
-      version: 3,
-      servers: [
-        {
-          accepts: ['www.google.com', 'www.facebook.com'],
-          denys: ['www.weibo.com', 'www.baidu.com'],
-          listen: [
-            'net::ERR_CONNECTION_RESET',
-            'net::ERR_CONNECTION_TIMED_OUT',
-            'net::ERR_SSL_PROTOCOL_ERROR',
-            'net::ERR_TIMED_OUT'
-          ],
-          server: 'SOCKS5:127.0.0.1:10086'
-        },
-        {
-          accepts: ['twitter.com', 'github.com'],
-          denys: ['www.douban.com'],
-          listen: [
-            'net::ERR_CONNECTION_RESET',
-            'net::ERR_CONNECTION_TIMED_OUT',
-            'net::ERR_SSL_PROTOCOL_ERROR',
-            'net::ERR_TIMED_OUT'
-          ],
-          server: 'SOCKS5:127.0.0.2:10086'
-        }
-      ]
-    }
-    return {
-      get: ():Promise<RawConfig> => {
-        return Promise.resolve(mockConfig)
-      },
-      set: (config:RawConfig):Promise<void> => {
-        mockConfig = config
-        return Promise.resolve()
-      }
+    if (chrome.proxy) {
+      new SwitchydWorker(chrome.proxy, this.config).applyPAC()
     }
   }
 }
