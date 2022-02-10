@@ -83,9 +83,7 @@ function testSwitchyd () {
     }
   )
 
-  engine.plug().finally(():void => {
-    console.log('done')
-  })
+  engine.plug()
 }
 
 // testAddURL()

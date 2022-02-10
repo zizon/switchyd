@@ -20,35 +20,29 @@ declare const chrome:{
 export function resolveStorage ():Storage {
   if (chrome && chrome.storage) {
     return {
-      get: ():Promise<RawConfig> => {
-        return chrome.storage.local.get('switchyd.config')
-          .then((save:saveConfig) => {
-            if (save['switchyd.config']) {
-              return save['switchyd.config']
-            }
-
-            // try local storage
-            const defaultConfig = {
-              version: 3,
-              servers: [{
-                accepts: [],
-                denys: [],
-                listen: [
-                  'net::ERR_CONNECTION_RESET',
-                  'net::ERR_CONNECTION_TIMED_OUT',
-                  'net::ERR_SSL_PROTOCOL_ERROR',
-                  'net::ERR_TIMED_OUT'
-                ],
-                server: 'SOCKS 127.0.0.1:10086'
-              }]
-            }
-
-            return chrome.storage.local.set({ 'switchyd.config': defaultConfig })
-              .then((_:void) => chrome.storage.local.get('switchyd.config'))
-              .then((save:saveConfig) => {
-                return save['switchyd.config']
-              })
-          })
+      get: async ():Promise<RawConfig> => {
+        const save = await chrome.storage.local.get('switchyd.config')
+        if (save['switchyd.config']) {
+          return save['switchyd.config']
+        }
+        // try local storage
+        const defaultConfig = {
+          version: 3,
+          servers: [{
+            accepts: [],
+            denys: [],
+            listen: [
+              'net::ERR_CONNECTION_RESET',
+              'net::ERR_CONNECTION_TIMED_OUT',
+              'net::ERR_SSL_PROTOCOL_ERROR',
+              'net::ERR_TIMED_OUT'
+            ],
+            server: 'SOCKS5 127.0.0.1:10086'
+          }]
+        }
+        await chrome.storage.local.set({ 'switchyd.config': defaultConfig })
+        const config = await chrome.storage.local.get('switchyd.config')
+        return config['switchyd.config']
       },
 
       set: (config:RawConfig):Promise<void> => {

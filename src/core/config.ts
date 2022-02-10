@@ -41,7 +41,7 @@ export class Config {
       return JSON.stringify(this.raw)
     }
 
-    public assignProxyFor (error:string, url:string) : Promise<boolean> {
+    public async assignProxyFor (error:string, url:string) : Promise<boolean> {
       for (const group of this.raw.servers) {
         if (group.listen.find((x) => x === error)) {
           if (CompileList(group.denys).test(url)) {
@@ -65,7 +65,8 @@ export class Config {
 
       if (changed) {
         console.log(`change for assignProxyFor(${error},${url})`)
-        return this.sync(this.compact()).then((_:void) => true)
+        await this.sync(this.compact())
+        return true
       }
 
       console.log(`no change for assignProxyFor(${error},${url})`)
