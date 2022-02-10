@@ -79,10 +79,13 @@ export class Generator {
 export const CompileList = (list:string[]):RegExp => {
   let expr = list.filter((x) => x.trim().length > 0)
     .map((x) => x.replace(/(\*|\$| )/g, ''))
+    .map((x) => x.replace(/^\./, ''))
+    .map((x) => x.replace(/\./g, '\\.'))
     .map((x) => `(${x}$)`)
     .join('|')
   if (expr.length === 0) {
     expr = '$^'
   }
+
   return new RegExp(expr)
 }
