@@ -77,13 +77,15 @@ export class Generator {
 }
 
 export const CompileList = (list:string[]):RegExp => {
-  let expr = list.filter((x) => x.trim().length > 0)
-    .map((x) => x.replace(/(\*|\$| )/g, ''))
-    .map((x) => x.replace(/^\./, ''))
-    .map((x) => x.replace(/\./g, '\\.'))
-    .map((x) => `(${x}$)`)
+  let expr = list.filter((x) => x.trim().length > 0) // filter empty
+    .map((x) => x.replace(/(\*|\$| )/g, '')) // replace start/end quote and spaceing
+    .map((x) => x.replace(/^\./, '')) // trim leading .
+    .map((x) => x.replace(/\./g, '\\.')) // escap dot to compliant RegExp
+    .map((x) => `(${x}$)`) // grouping with tailing matching
     .join('|')
+
   if (expr.length === 0) {
+    // matching nothing
     expr = '$^'
   }
 

@@ -5,6 +5,17 @@ import { Switchyd } from './switchyd.js'
 declare const chrome: {
     webRequest:any
     proxy:any
+    runtime: {
+        onInstalled : {
+            addListener(callback:()=>void):void
+        }
+    }
 }
 
-new Switchyd(chrome.webRequest, chrome.proxy, resolveStorage()).plug()
+if (chrome && chrome.runtime) {
+  chrome.runtime.onInstalled.addListener(():void => {
+    new Switchyd(chrome.webRequest, chrome.proxy, resolveStorage()).plug()
+  })
+} else {
+  new Switchyd(chrome.webRequest, chrome.proxy, resolveStorage()).plug()
+}
