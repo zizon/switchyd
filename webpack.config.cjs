@@ -6,5 +6,8 @@ module.exports = {
   },
   output: {
     filename: '[name].js'
+  },
+  experiments: {
+    topLevelAwait:true
   }
 }
