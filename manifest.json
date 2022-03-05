@@ -1,6 +1,6 @@
 {
     "name": "switchyd",
-    "version": "0.8.0.3",
+    "version": "0.8.0.4",
     "manifest_version": 3,
     
     "background":{

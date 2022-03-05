@@ -5,19 +5,20 @@ import { Switchyd } from './switchyd.js'
 declare const chrome: {
   webRequest:any
   proxy:any
+  runtime:{
+    onInstalled:{
+      addListener:(callback:(event:Event)=>void)=>void
+    }
+  }
 }
 
-declare type ExtendableEvent = {
-  waitUntil:(promise:Promise<any>)=>void
+
+if( chrome ){
+  chrome.runtime.onInstalled.addListener(()=>{
+    // kick init register
+    new Switchyd(chrome.webRequest, chrome.proxy, resolveStorage()).plug()
+  })
 }
 
-declare const self:{
-  onactivate:(event:ExtendableEvent)=>void
-}
 
-// kick init register
-new Switchyd(chrome.webRequest, chrome.proxy, resolveStorage()).plug()
 
-if(self){
-  await new Promise(()=>{})
-}
