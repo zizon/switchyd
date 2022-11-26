@@ -1,7 +1,6 @@
 import { RawConfig } from './config.js'
 import { ProxyHook, Storage, WebHook } from './switchyd.js'
 
-/* eslint-disable no-unused-vars */
 declare type saveConfig = {
   'switchyd.config':RawConfig
 }

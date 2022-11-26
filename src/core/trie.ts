@@ -1,5 +1,3 @@
-/* eslint-disable require-jsdoc */
-
 export class URLTier {
    protected lookup :Map<string, URLTier>
 
