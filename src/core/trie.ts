@@ -60,9 +60,12 @@ export class URLTier {
 
      // reduce this tree
      if (this.lookup.size >= 2) {
-       this.lookup.keys()
        this.lookup.clear()
        this.lookup.set('*', new URLTier())
+     }else{
+       for (const child of this.lookup.values()) {
+        child.compactWithLevel(level + 1)
+       }
      }
    }
 }
